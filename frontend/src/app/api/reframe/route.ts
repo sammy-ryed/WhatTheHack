@@ -1,4 +1,3 @@
-// app/api/reframe/route.ts
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
@@ -11,6 +10,7 @@ export async function POST(req: Request) {
       body: JSON.stringify({ text }),
     });
 
+    if (!res.ok) throw new Error(`Status ${res.status}`);
     const data = await res.json();
     return NextResponse.json(data);
   } catch (err) {

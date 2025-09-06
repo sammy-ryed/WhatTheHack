@@ -4,7 +4,7 @@ Here’s my tech stack & setup:
 - **Frontend**: Next.js 13+ (App Router) + TailwindCSS (for styling) + Framer Motion (planned for animations).
 - **Backend**: FastAPI (Python).
 - **Database**: MySQL (using PyMySQL).
-- **AI Layer**: OpenAI API (currently using `gpt-4o-mini`).
+- **AI Layer**: OpenAI API (currently using `gpt-4o`).
 - **Data Sources**: Right now only Reddit via PRAW; plan to add StackOverflow, GitHub Issues, Twitter/X API, Quora (via scraping).
 - **Integration**: Next.js uses `app/api/*/route.ts` to call FastAPI routes (`/reframe`, `/fetch`, `/problems`) and forward data to frontend.
 - **Environment**:
@@ -26,7 +26,6 @@ Here’s my tech stack & setup:
     - A **feed page** → shows fresh Reddit problems + stored problems (both render correctly 🎉).
 
 Here’s what I still need to do:
-1. Add a **“Save & Reframe” button** under each Reddit problem → when clicked, it sends that Reddit text to `/reframe` and stores reframed version in DB.
 2. Add **filters/search** (by domain, difficulty) on the feed page.
 3. Improve **UI/UX** (Tailwind refinements + Framer Motion animations).
 4. Expand **data sources** (StackOverflow API, GitHub Issues API, Twitter/X API, Quora scraping).
@@ -37,4 +36,3 @@ Here’s what I still need to do:
 My final aim:
 Deliver a hackathon-ready platform where anyone can fetch real-world problems, instantly reframe them into hackathon challenges with AI, and browse/search/filter them in a clean frontend. This aligns with my PDF vision: a one-stop destination for meaningful hackathon problem statements.
 
-Whenever I open a new chat, I’ll paste this master prompt so you can pick up from here and guide me step by step.

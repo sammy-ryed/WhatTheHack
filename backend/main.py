@@ -3,10 +3,10 @@ from dotenv import load_dotenv
 import pymysql
 from fastapi import FastAPI
 from pydantic import BaseModel
-from openai import OpenAI
 import praw
-import requests
 import json
+import time
+import requests
 
 # ---------------------------
 # Load environment variables
@@ -17,7 +17,7 @@ DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_USER = os.getenv("DB_USER", "root")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "")
 DB_NAME = os.getenv("DB_NAME", "whatthehack")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+HF_API_TOKEN = os.getenv("HF_API_TOKEN")  # Hugging Face API Token
 
 reddit = praw.Reddit(
     client_id=os.getenv("REDDIT_CLIENT_ID"),
@@ -26,16 +26,15 @@ reddit = praw.Reddit(
 )
 
 print("🔑 Checking environment...")
-if OPENAI_API_KEY:
-    print("✅ OpenAI API key loaded")
+if HF_API_TOKEN:
+    print("✅ Hugging Face API key loaded")
 else:
-    raise ValueError("❌ OPENAI_API_KEY not found. Check your .env file.")
+    raise ValueError("❌ HF_API_TOKEN not found. Check your .env file.")
 
 # ---------------------------
-# Init FastAPI + OpenAI
+# Init FastAPI
 # ---------------------------
 app = FastAPI()
-client = OpenAI(api_key=OPENAI_API_KEY)
 
 # ---------------------------
 # Connect to MySQL with PyMySQL
@@ -65,6 +64,45 @@ cursor.execute("""
     )
 """)
 print("✅ Table 'problems' is ready")
+
+# ---------------------------
+# Helper: Reframe problem using Hugging Face Inference API
+# ---------------------------
+HF_MODEL = "google/flan-t5-large"  # use small/base/large only
+
+
+def reframe_with_hf(text):
+    prompt = f"""
+Reframe this raw user problem into a hackathon challenge.
+Also classify its domain and difficulty.
+
+Problem: {text}
+
+Return JSON with keys 'reframed', 'domain', 'difficulty'.
+"""
+    headers = {"Authorization": f"Bearer {HF_API_TOKEN}"}
+    payload = {"inputs": prompt}
+
+    max_retries = 3
+    wait_seconds = 5
+
+    for attempt in range(max_retries):
+        try:
+            response = requests.post(
+                f"https://api-inference.huggingface.co/models/{HF_MODEL}",
+                headers=headers,
+                json=payload
+            )
+            response.raise_for_status()
+            output_text = response.json()[0]["generated_text"].strip()
+            return json.loads(output_text)
+        except Exception as e:
+            print(f"⚠️ Hugging Face error / JSON parse issue: {e}")
+            time.sleep(wait_seconds)
+            wait_seconds *= 2
+
+    # fallback if parsing fails
+    return {"reframed": text, "domain": "Unknown", "difficulty": "Unknown"}
 
 # ---------------------------
 # Helper: Scrape Reddit
@@ -103,28 +141,8 @@ class ProblemRequest(BaseModel):
 @app.post("/reframe")
 def reframe_problem(req: ProblemRequest):
     print(f"📩 Received problem: {req.text}")
-    
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "You are an assistant that reframes raw user problems into hackathon-style challenges. Also classify into domain and difficulty."},
-            {"role": "user", "content": req.text}
-        ],
-        response_format={ "type": "json_schema", "json_schema": {
-            "name": "reframed_problem",
-            "schema": {
-                "type": "object",
-                "properties": {
-                    "reframed": {"type": "string"},
-                    "domain": {"type": "string"},
-                    "difficulty": {"type": "string"}
-                },
-                "required": ["reframed", "domain", "difficulty"]
-            }
-        }}
-    )
 
-    result = response.choices[0].message.parsed
+    result = reframe_with_hf(req.text)
     reframed = result["reframed"]
     domain = result["domain"]
     difficulty = result["difficulty"]
@@ -158,29 +176,43 @@ def fetch_route():
     if not raw_posts:
         return {"problems": []}
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": """
+    # 🔹 Limit to first 10 posts
+    raw_posts = raw_posts[:10]
+
+    system_prompt = """
 You are an assistant that extracts real problems from Reddit posts.
 Keep any post that clearly describes a challenge, bug, question, or obstacle.
 Even if small or casual, keep it.
 Discard memes, vague discussions, or irrelevant posts.
 Return a JSON object with a key 'problems' containing an array of problem statements.
-            """},
-            {"role": "user", "content": "\n".join(raw_posts)}
-        ],
-        response_format={"type": "json_object"}
-    )
+    """
 
-    try:
-        filtered = json.loads(response.choices[0].message.content)
-        problems = filtered.get("problems", [])
-    except Exception as e:
-        print("❌ JSON parse error:", e)
-        problems = []
+    user_content = "\n".join(raw_posts)
+    
+    max_retries = 3
+    wait_seconds = 5
+    for attempt in range(max_retries):
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_content}
+                ],
+                response_format={"type": "json_object"}
+            )
+            # parse JSON
+            filtered = json.loads(response.choices[0].message.content)
+            problems = filtered.get("problems", [])
+            break
+        except Exception as e:
+            print(f"⚠️ OpenAI error / JSON parse issue: {e}. Retrying in {wait_seconds}s...")
+            time.sleep(wait_seconds)
+            wait_seconds *= 2  # exponential backoff
+            problems = []
 
     return {"problems": problems}
+
 
 @app.get("/problems")
 def list_problems():
