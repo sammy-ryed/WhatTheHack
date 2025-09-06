@@ -65,15 +65,16 @@ export default function HomePage() {
       </button>
 
       {/* Sidebar */}
-      <aside
-        className={`fixed top-0 left-0 h-full w-64 bg-[var(--card)] shadow-md transform transition-transform duration-300 flex flex-col gap-5 px-6 pt-24 z-40 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
-        <h2 className="text-2xl font-bold">Menu</h2>
-        <a href="/" className="hover:text-purple-500 text-lg">Landing</a>
-        <a href="/feed" className="hover:text-purple-500 text-lg">Problem Feed</a>
-      </aside>
+<aside
+  className={`fixed top-0 left-0 h-full w-64 bg-[var(--card)] shadow-md transform transition-transform duration-300 flex flex-col gap-5 px-6 pt-24 z-40 ${
+    sidebarOpen ? "translate-x-0" : "-translate-x-full"
+  }`}
+>
+  <h2 className="text-2xl font-bold">Menu</h2>
+  <a href="/" className="hover:text-purple-500 text-lg">Landing</a>
+  <a href="/about" className="hover:text-purple-500 text-lg">About Us</a>
+</aside>
+
 
       <div className="container max-w-5xl mx-auto p-6">
         {/* Header */}
@@ -126,30 +127,36 @@ export default function HomePage() {
         </div>
 
         {/* Problem Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filtered.length === 0 ? (
-            <p className="col-span-full text-center text-[var(--muted)]">No results found</p>
-          ) : (
-            filtered.map((item) => (
-              <article
-                key={item.id}
-                className="relative bg-[var(--card)] border-2 border-[var(--border)] rounded-2xl p-6 shadow transition transform hover:scale-105 hover:shadow-xl cursor-pointer overflow-hidden
-                           before:content-[''] before:absolute before:inset-[-3px] before:rounded-2xl before:bg-[linear-gradient(135deg,#ff6ec4,#7873f5,#42e695,#ff9a9e)] before:bg-[length:400%_400%] before:opacity-0 hover:before:opacity-100 before:-z-10 before:transition-opacity before:duration-500"
-                onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
-              >
-                <span className="inline-block text-sm bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-full text-black mb-3">
-                  {item.domain} | {item.difficulty}
-                </span>
+<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+  {filtered.length === 0 ? (
+    <p className="col-span-full text-center text-[var(--muted)]">No results found</p>
+  ) : (
+    filtered.map((item) => (
+      <article
+        key={item.id}
+        className="group relative bg-[var(--card)] border-2 border-[var(--border)] rounded-2xl p-6 shadow transition transform hover:scale-105 hover:shadow-xl cursor-pointer overflow-hidden
+                   before:content-[''] before:absolute before:inset-[-3px] before:rounded-2xl before:bg-[linear-gradient(135deg,#ff6ec4,#7873f5,#42e695,#ff9a9e)] before:bg-[length:400%_400%] before:opacity-0 hover:before:opacity-100 before:-z-10 before:transition-opacity before:duration-500"
+      >
+        <span className="inline-block text-sm bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-full text-black mb-3">
+          {item.domain} | {item.difficulty}
+        </span>
 
-                <h3 className="text-xl font-bold mb-2 text-[var(--text)]">{item.title}</h3>
+        <h3 className="text-2xl font-bold mb-2 text-[var(--text)]">{item.title}</h3>
 
-                {expandedId === item.id && (
-                  <p className="mt-2 text-sm text-[var(--text)]">{item.reframed}</p>
-                )}
-              </article>
-            ))
-          )}
-        </div>
+        {/* Fade-in text on hover (no pushing layout) */}
+        <p
+  className="mt-7 text-sm text-[var(--text)] opacity-0 translate-y-2 
+             group-hover:opacity-100 group-hover:translate-y-0 
+             transition-all duration-500 ease-out"
+>
+  {item.reframed}
+</p>
+
+      </article>
+    ))
+  )}
+</div>
+
       </div>
     </main>
   );
