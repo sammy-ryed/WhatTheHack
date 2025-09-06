@@ -5,7 +5,6 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from openai import OpenAI
 import praw
-import requests
 import json
 
 # ---------------------------
@@ -25,11 +24,9 @@ reddit = praw.Reddit(
     user_agent=os.getenv("REDDIT_USER_AGENT")
 )
 
-print("🔑 Checking environment...")
-if OPENAI_API_KEY:
-    print("✅ OpenAI API key loaded")
-else:
+if not OPENAI_API_KEY:
     raise ValueError("❌ OPENAI_API_KEY not found. Check your .env file.")
+print("✅ OpenAI API key loaded")
 
 # ---------------------------
 # Init FastAPI + OpenAI
@@ -76,15 +73,12 @@ def scrape_reddit(subreddit_list, keywords):
             for submission in reddit.subreddit(name).hot(limit=15):
                 if submission.stickied:
                     continue
-
                 text = submission.title
                 if submission.selftext:
                     text += " " + submission.selftext
                 text = text.strip()
-
                 if len(text.split()) <= 8:
                     continue
-
                 if any(kw in text.lower() for kw in keywords):
                     problems.append(text)
         except Exception as e:
@@ -103,39 +97,37 @@ class ProblemRequest(BaseModel):
 @app.post("/reframe")
 def reframe_problem(req: ProblemRequest):
     print(f"📩 Received problem: {req.text}")
-    
+
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": "You are an assistant that reframes raw user problems into hackathon-style challenges. Also classify into domain and difficulty."},
             {"role": "user", "content": req.text}
         ],
-        response_format={ "type": "json_schema", "json_schema": {
-            "name": "reframed_problem",
-            "schema": {
-                "type": "object",
-                "properties": {
-                    "reframed": {"type": "string"},
-                    "domain": {"type": "string"},
-                    "difficulty": {"type": "string"}
-                },
-                "required": ["reframed", "domain", "difficulty"]
+        response_format={
+            "type": "json_schema",
+            "json_schema": {
+                "name": "reframed_problem",
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "reframed": {"type": "string"},
+                        "domain": {"type": "string"},
+                        "difficulty": {"type": "string"}
+                    },
+                    "required": ["reframed", "domain", "difficulty"]
+                }
             }
-        }}
+        }
     )
 
     result = response.choices[0].message.parsed
-    reframed = result["reframed"]
-    domain = result["domain"]
-    difficulty = result["difficulty"]
-
-    print(f"✨ Reframed: {reframed} | Domain: {domain} | Difficulty: {difficulty}")
-
     cursor.execute(
         "INSERT INTO problems (text, reframed, domain, difficulty) VALUES (%s, %s, %s, %s)",
-        (req.text, reframed, domain, difficulty)
+        (req.text, result["reframed"], result["domain"], result["difficulty"])
     )
     db.commit()
+    print(f"✨ Reframed: {result['reframed']} | Domain: {result['domain']} | Difficulty: {result['difficulty']}")
     print("💾 Saved to database")
 
     return result
@@ -147,16 +139,17 @@ def fetch_route():
         "cscareerquestions", "CSStudents", "AskProgramming",
         "buildapc", "linuxquestions", "applehelp"
     ]
-
     keywords = [
         "how", "why", "error", "issue", "problem", "can't", "cannot",
         "doesn't", "won't", "help", "stuck", "crash", "bug", "fail", "broken"
     ]
 
     raw_posts = scrape_reddit(subreddits, keywords)
-
     if not raw_posts:
         return {"problems": []}
+
+    # 🔹 Only take the first 10 posts
+    raw_posts = raw_posts[:10]
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",
