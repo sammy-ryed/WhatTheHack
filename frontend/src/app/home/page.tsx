@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 interface Problem {
   id: number;
+  title: string;
   reframed: string;
   domain: string;
   difficulty: string;
@@ -13,35 +14,38 @@ export default function HomePage() {
   const [problems, setProblems] = useState<Problem[]>([]);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [theme, setTheme] = useState<"light" | "dark">("dark"); // default dark
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
 
-  // Load stored problems from backend
+  // Load stored problems
   useEffect(() => {
     fetch("/api/problems")
       .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) setProblems(data);
-      })
+      .then((data) => Array.isArray(data) && setProblems(data))
       .catch(() => setProblems([]));
   }, []);
 
-  // Theme management
+  // Apply theme on first client render
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem("theme", theme);
-  }, [theme]);
-
-  useEffect(() => {
-    const saved = (localStorage.getItem("theme") as "light" | "dark") || "light";
+    const saved = (localStorage.getItem("theme") as "light" | "dark") || "dark";
     setTheme(saved);
+    document.documentElement.setAttribute("data-theme", saved);
   }, []);
+
+  const toggleTheme = () => {
+    const next = theme === "light" ? "dark" : "light";
+    setTheme(next);
+    document.documentElement.setAttribute("data-theme", next);
+    localStorage.setItem("theme", next);
+  };
 
   // Filter + search logic
   const filtered = problems.filter((item) => {
     const matchesFilter = filter === "All" || item.domain === filter;
     const matchesSearch =
       !search ||
+      item.title.toLowerCase().includes(search.toLowerCase()) ||
       item.reframed.toLowerCase().includes(search.toLowerCase()) ||
       item.domain.toLowerCase().includes(search.toLowerCase());
     return matchesFilter && matchesSearch;
@@ -51,7 +55,7 @@ export default function HomePage() {
     <main className="min-h-screen bg-[var(--bg)] text-[var(--text)] transition-colors">
       {/* Hamburger */}
       <button
-        className="fixed top-5 left-5 z-50 cursor-pointer bg-[var(--card)] border border-[var(--border)] p-3 rounded-lg shadow-md"
+        className="fixed top-5 left-5 z-50 p-3 rounded-lg shadow-md bg-[var(--card)] border border-[var(--border)]"
         onClick={() => setSidebarOpen(!sidebarOpen)}
         aria-label="Toggle sidebar menu"
       >
@@ -67,12 +71,8 @@ export default function HomePage() {
         }`}
       >
         <h2 className="text-2xl font-bold">Menu</h2>
-        <a href="/" className="hover:text-purple-500 text-lg">
-          Landing
-        </a>
-        <a href="/feed" className="hover:text-purple-500 text-lg">
-          Problem Feed
-        </a>
+        <a href="/" className="hover:text-purple-500 text-lg">Landing</a>
+        <a href="/feed" className="hover:text-purple-500 text-lg">Problem Feed</a>
       </aside>
 
       <div className="container max-w-5xl mx-auto p-6">
@@ -113,36 +113,39 @@ export default function HomePage() {
 
             {/* Theme toggle */}
             <button
-              onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+              onClick={toggleTheme}
               className="bg-[var(--card)] border border-[var(--border)] rounded-lg px-3 py-2 shadow text-xl"
             >
               {theme === "dark" ? "☀️" : "🌙"}
             </button>
           </div>
+
           <div className="text-sm text-[var(--muted)]">
             Showing {filtered.length} problem{filtered.length !== 1 ? "s" : ""}
           </div>
         </div>
 
-        {/* Grid */}
+        {/* Problem Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filtered.length === 0 ? (
-            <p className="col-span-full text-center text-[var(--muted)]">
-              No results found
-            </p>
+            <p className="col-span-full text-center text-[var(--muted)]">No results found</p>
           ) : (
             filtered.map((item) => (
               <article
                 key={item.id}
                 className="relative bg-[var(--card)] border-2 border-[var(--border)] rounded-2xl p-6 shadow transition transform hover:scale-105 hover:shadow-xl cursor-pointer overflow-hidden
                            before:content-[''] before:absolute before:inset-[-3px] before:rounded-2xl before:bg-[linear-gradient(135deg,#ff6ec4,#7873f5,#42e695,#ff9a9e)] before:bg-[length:400%_400%] before:opacity-0 hover:before:opacity-100 before:-z-10 before:transition-opacity before:duration-500"
+                onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
               >
                 <span className="inline-block text-sm bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-full text-black mb-3">
                   {item.domain} | {item.difficulty}
                 </span>
-                <h3 className="text-xl font-bold mb-2 text-[var(--text)]">
-                  {item.reframed}
-                </h3>
+
+                <h3 className="text-xl font-bold mb-2 text-[var(--text)]">{item.title}</h3>
+
+                {expandedId === item.id && (
+                  <p className="mt-2 text-sm text-[var(--text)]">{item.reframed}</p>
+                )}
               </article>
             ))
           )}
@@ -151,4 +154,3 @@ export default function HomePage() {
     </main>
   );
 }
-  

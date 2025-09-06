@@ -1,40 +1,97 @@
-I’m building a project called **WhatTheHack** — an AI-powered open innovation platform that collects real-world problems from sources like Reddit (later StackOverflow, GitHub Issues, Twitter/X, Quora), reframes them into structured hackathon-ready challenges, categorizes them (domain + difficulty), stores them in MySQL, and displays them in a Next.js frontend.
+Project Goal / Main Idea:
+I am building a web application that scrapes Reddit posts, reframes them into hackathon-style problem statements, and displays them in a searchable and filterable feed. Users can:
 
-Here’s my tech stack & setup:
-- **Frontend**: Next.js 13+ (App Router) + TailwindCSS (for styling) + Framer Motion (planned for animations).
-- **Backend**: FastAPI (Python).
-- **Database**: MySQL (using PyMySQL).
-- **AI Layer**: OpenAI API (currently using `gpt-4o-mini`).
-- **Data Sources**: Right now only Reddit via PRAW; plan to add StackOverflow, GitHub Issues, Twitter/X API, Quora (via scraping).
-- **Integration**: Next.js uses `app/api/*/route.ts` to call FastAPI routes (`/reframe`, `/fetch`, `/problems`) and forward data to frontend.
-- **Environment**:
-  - `.env` has DB credentials, OpenAI API key, and Reddit API creds (`client_id`, `client_secret`, `user_agent`).
-  - FastAPI connects to MySQL and ensures a `problems` table with schema:
-    ```
-    id (INT, PK, auto increment),
-    text (TEXT),
-    reframed (TEXT),
-    domain (VARCHAR),
-    difficulty (VARCHAR)
-    ```
-- **What’s working right now**:
-  - `/reframe`: takes input, calls OpenAI to reframe + categorize, saves in DB.
-  - `/fetch`: pulls problems from Reddit.
-  - `/problems`: lists saved problems from DB.
-  - Frontend has:
-    - A **home page** with a form → calls `/api/reframe` → shows reframed result.
-    - A **feed page** → shows fresh Reddit problems + stored problems (both render correctly 🎉).
+Browse problems by domain (AI/ML, FinTech, Blockchain, HealthTech, WebDev, General Tech)
 
-Here’s what I still need to do:
-1. Add a **“Save & Reframe” button** under each Reddit problem → when clicked, it sends that Reddit text to `/reframe` and stores reframed version in DB.
-2. Add **filters/search** (by domain, difficulty) on the feed page.
-3. Improve **UI/UX** (Tailwind refinements + Framer Motion animations).
-4. Expand **data sources** (StackOverflow API, GitHub Issues API, Twitter/X API, Quora scraping).
-5. Add ability to **export problem packs** (CSV/PDF) for hackathon organizers.
-6. Add **authentication/user accounts** later → users can save favorite problems.
-7. (Optional for hackathon scope) **monetization/curation features** (premium curated problem packs, sponsored challenges).
+Search problems by title, domain, or content
 
-My final aim:
-Deliver a hackathon-ready platform where anyone can fetch real-world problems, instantly reframe them into hackathon challenges with AI, and browse/search/filter them in a clean frontend. This aligns with my PDF vision: a one-stop destination for meaningful hackathon problem statements.
+Toggle between dark mode and light mode
 
-Whenever I open a new chat, I’ll paste this master prompt so you can pick up from here and guide me step by step.
+Expand problem cards to see full content
+
+The app stores the scraped and reframed problems in a MySQL database, and also uses OpenAI’s API to generate the “reframed problem + title + domain + difficulty” for each raw Reddit post.
+
+Tech Stack:
+
+Frontend: Next.js 13 with App Router, TailwindCSS, React Client Components for dynamic behavior
+
+Backend: FastAPI or Next.js API routes for OpenAI calls and Reddit scraping
+
+Database: MySQL
+
+External APIs: OpenAI GPT-4o-mini for problem reframing, Reddit via PRAW
+
+Key Features Implemented So Far:
+
+Problem fetching & filtering:
+
+Fetch from /api/problems
+
+Filter by domain
+
+Search by title, domain, or reframed content
+
+Theme management:
+
+Dark mode is default
+
+Theme persists across sessions via localStorage
+
+Proper client-side syncing to avoid hydration errors
+
+UI Components:
+
+Sidebar with menu links
+
+Search input with icon
+
+Filter dropdown for domain selection
+
+Theme toggle button
+
+Responsive problem grid with hover effects
+
+Expandable problem cards
+
+SSR / Hydration Issues Solved:
+
+Default data-theme="dark" set on first client render to match server HTML
+
+Hydration mismatch errors fixed by ensuring client state (theme) matches SSR
+
+OpenAI / Backend Integration:
+
+/reframe endpoint: takes user input, calls OpenAI to generate reframed problem
+
+/fetch endpoint: scrapes Reddit, reframes posts, stores them in DB
+
+Ensures posts have domain, difficulty, title, and reframed text
+
+Current Tasks / Issues:
+
+Hydration errors on page load caused by theme mismatches (mostly solved)
+
+Ensuring dark mode works on initial render and persists
+
+Minor CSS tweaks for cards and sidebar responsiveness
+
+What I Expect from You (ChatGPT):
+
+Help maintain and extend the app
+
+Suggest fixes for SSR / hydration issues
+
+Optimize dark/light theme management
+
+Assist with adding features or API endpoints as needed
+
+Keep context so we don’t lose the state of this project
+
+💡 How to Use This Prompt:
+Next time you start a new session, just send:
+
+“Here’s my master prompt for the Hackathon Problem Feed app:”
+paste the above content
+
+This way, you can pick up exactly where we left off without losing context.
+okay so i am making this website that takws real live problems from reddit and turns them into problems statement for hankathons. we call i WhatTheHack we're using fastapi next js 13+ and mysql

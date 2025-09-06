@@ -1,9 +1,11 @@
 import os
 import json
+import random
 import pymysql
 import praw
 from dotenv import load_dotenv
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from openai import OpenAI
 
@@ -38,8 +40,25 @@ app = FastAPI()
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 # ---------------------------
-# Connect to MySQL
+# DB connection helper
 # ---------------------------
+def get_cursor():
+    """Get a live MySQL cursor with auto-reconnect."""
+    global db, cursor
+    try:
+        db.ping(reconnect=True)
+    except Exception as e:
+        print("⚠️ Reconnecting to MySQL:", e)
+        db = pymysql.connect(
+            host=DB_HOST,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            database=DB_NAME,
+            cursorclass=pymysql.cursors.DictCursor
+        )
+    return db.cursor()
+
+# Init DB
 try:
     db = pymysql.connect(
         host=DB_HOST,
@@ -54,23 +73,24 @@ except Exception as e:
     print("❌ Failed to connect to MySQL:", e)
     raise
 
-# Ensure table exists
+# Ensure table exists (with title column)
 cursor.execute("""
     CREATE TABLE IF NOT EXISTS problems (
         id INT AUTO_INCREMENT PRIMARY KEY,
+        title VARCHAR(255),
         text TEXT,
         reframed TEXT,
         domain VARCHAR(255),
         difficulty VARCHAR(255)
     )
 """)
+db.commit()
 print("✅ Table 'problems' is ready")
 
 # ---------------------------
 # Helper: Scrape Reddit
 # ---------------------------
 def scrape_reddit(subreddit_list, keywords):
-    """Scrape hot posts from given subreddits if they match keywords"""
     problems = []
     for name in subreddit_list:
         try:
@@ -91,6 +111,24 @@ def scrape_reddit(subreddit_list, keywords):
     return problems
 
 # ---------------------------
+# Random subreddit selection per domain
+# ---------------------------
+domain_subreddits = {
+    "AI/ML": ["MachineLearning", "datascience", "deeplearning"],
+    "FinTech": ["FinTech", "personalfinance", "financialindependence", "cryptocurrency"],
+    "Blockchain": ["ethereum", "CryptoTechnology", "Solana", "web3", "NFT"],
+    "HealthTech": ["healthIT", "DigitalHealth", "medtech", "Bioinformatics", "Healthcare"],
+    "WebDev": ["webdev", "learnprogramming", "linuxquestions", "buildapc", "applehelp"],
+    "General Tech": ["techsupport", "Entrepreneur", "startups", "IoT", "cscareerquestions"]
+}
+
+def get_random_subreddits_per_domain(n_per_domain=2):
+    selected = []
+    for domain, subs in domain_subreddits.items():
+        selected += random.sample(subs, min(n_per_domain, len(subs)))
+    return selected
+
+# ---------------------------
 # Request body schema
 # ---------------------------
 class ProblemRequest(BaseModel):
@@ -101,16 +139,19 @@ class ProblemRequest(BaseModel):
 # ---------------------------
 @app.post("/reframe")
 def reframe_problem(req: ProblemRequest):
-    """Reframe a single user problem into hackathon format"""
-    print(f"📩 Received problem: {req.text}")
-
+    """Reframe a single user problem into hackathon format and generate title"""
+    cursor = get_cursor()
     try:
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
                 {
                     "role": "system",
-                    "content": "You are an assistant that reframes raw user problems into hackathon-style challenges. Also classify into domain and difficulty."
+                    "content": """
+You are an assistant that reframes raw user problems into hackathon-style challenges.
+Also, generate a very short catchy title (max 5 words) for the problem.
+Classify the problem into domain and difficulty.
+"""
                 },
                 {"role": "user", "content": req.text}
             ],
@@ -121,48 +162,49 @@ def reframe_problem(req: ProblemRequest):
                     "schema": {
                         "type": "object",
                         "properties": {
+                            "title": {"type": "string"},
                             "reframed": {"type": "string"},
                             "domain": {"type": "string"},
                             "difficulty": {"type": "string"}
                         },
-                        "required": ["reframed", "domain", "difficulty"]
+                        "required": ["title", "reframed", "domain", "difficulty"]
                     }
                 }
             }
         )
 
-        # Safer: use content instead of `.parsed`
         result = json.loads(response.choices[0].message.content)
 
         cursor.execute(
-            "INSERT INTO problems (text, reframed, domain, difficulty) VALUES (%s, %s, %s, %s)",
-            (req.text, result["reframed"], result["domain"], result["difficulty"])
+            "INSERT INTO problems (title, text, reframed, domain, difficulty) VALUES (%s, %s, %s, %s, %s)",
+            (result["title"], req.text, result["reframed"], result["domain"], result["difficulty"])
         )
         db.commit()
-        print(f"✨ Reframed: {result['reframed']} | Domain: {result['domain']} | Difficulty: {result['difficulty']}")
         return result
 
     except Exception as e:
-        print(f"❌ OpenAI/DB error: {e}")
-        return {"error": "Failed to process problem"}
+        print(f"❌ Error in /reframe: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 @app.get("/fetch")
 def fetch_route():
-    """Scrape Reddit, reframe posts, and save to DB"""
-    subreddits = [
-        "techsupport", "learnprogramming", "webdev", "Entrepreneur",
-        "cscareerquestions", "AskProgramming",
-        "buildapc", "linuxquestions", "applehelp"
-    ]
+    """Scrape Reddit, generate titles, reframe posts, save to DB, and show debug info"""
+    subreddits = get_random_subreddits_per_domain(n_per_domain=2)
+    print("🔹 Selected subreddits for this fetch:", subreddits)
+
     keywords = [
         "how", "why", "error", "issue", "problem", "can't", "cannot",
         "doesn't", "won't", "help", "stuck", "crash", "bug", "fail", "broken"
     ]
 
-    # Scrape max 10 posts
     raw_posts = scrape_reddit(subreddits, keywords)[:10]
+
+    print("🔹 Raw Reddit posts being scraped:")
+    for idx, post in enumerate(raw_posts, 1):
+        print(f"{idx}: {post}\n")
+
     if not raw_posts:
-        return {"problems": []}
+        return {"raw_posts": [], "problems": []}
 
     try:
         response = client.chat.completions.create(
@@ -172,14 +214,19 @@ def fetch_route():
                     "role": "system",
                     "content": """
 You are an assistant that reframes Reddit posts into hackathon-style problems.
-For each input post, return JSON with:
+For each post, generate:
+- title: a very short catchy title (max 5 words)
 - reframed: problem statement
 - domain: choose from [AI/ML, FinTech, Blockchain, HealthTech, WebDev, General Tech]
 - difficulty: Easy, Medium, or Hard
-Return {"problems": [ ... ]}.
+Return the result as a JSON object like:
+{"problems": [ ... ]}
 """
                 },
-                {"role": "user", "content": json.dumps(raw_posts)}
+                {
+                    "role": "user",
+                    "content": f"Please convert the following posts to JSON format:\n{json.dumps(raw_posts)}"
+                }
             ],
             response_format={"type": "json_object"}
         )
@@ -187,12 +234,13 @@ Return {"problems": [ ... ]}.
         parsed = json.loads(response.choices[0].message.content)
         problems = parsed.get("problems", [])
 
-        # Save each problem into DB
+        cursor = get_cursor()
         for idx, p in enumerate(problems):
             try:
                 cursor.execute(
-                    "INSERT INTO problems (text, reframed, domain, difficulty) VALUES (%s, %s, %s, %s)",
+                    "INSERT INTO problems (title, text, reframed, domain, difficulty) VALUES (%s, %s, %s, %s, %s)",
                     (
+                        p.get("title", ""),
                         raw_posts[idx],
                         p.get("reframed", ""),
                         p.get("domain", ""),
@@ -203,15 +251,20 @@ Return {"problems": [ ... ]}.
                 print(f"⚠️ DB insert failed: {e}")
         db.commit()
 
-        return {"problems": problems}
+        return {"raw_posts": raw_posts, "problems": problems}
 
     except Exception as e:
-        print(f"❌ Error in batch OpenAI processing: {e}")
-        return {"problems": []}
+        print(f"❌ Error in /fetch: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
 
 @app.get("/problems")
 def list_problems():
     """List all problems stored in DB"""
-    cursor.execute("SELECT * FROM problems ORDER BY id DESC")
-    return cursor.fetchall()
-
+    try:
+        cursor = get_cursor()
+        cursor.execute("SELECT * FROM problems ORDER BY id DESC")
+        return cursor.fetchall()
+    except Exception as e:
+        print(f"❌ Error in /problems: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
