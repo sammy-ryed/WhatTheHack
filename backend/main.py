@@ -214,3 +214,4 @@ def list_problems():
     """List all problems stored in DB"""
     cursor.execute("SELECT * FROM problems ORDER BY id DESC")
     return cursor.fetchall()
+
