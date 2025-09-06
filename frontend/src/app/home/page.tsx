@@ -16,7 +16,7 @@ export default function HomePage() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Fetch from backend
+  // Load stored problems from backend
   useEffect(() => {
     fetch("/api/problems")
       .then((res) => res.json())
@@ -26,7 +26,7 @@ export default function HomePage() {
       .catch(() => setProblems([]));
   }, []);
 
-  // Apply theme
+  // Theme management
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("theme", theme);
@@ -50,14 +50,15 @@ export default function HomePage() {
   return (
     <main className="min-h-screen bg-[var(--bg)] text-[var(--text)] transition-colors">
       {/* Hamburger */}
-      <div
+      <button
         className="fixed top-5 left-5 z-50 cursor-pointer bg-[var(--card)] border border-[var(--border)] p-3 rounded-lg shadow-md"
         onClick={() => setSidebarOpen(!sidebarOpen)}
+        aria-label="Toggle sidebar menu"
       >
         <div className="w-6 h-[3px] bg-[var(--text)] mb-1" />
         <div className="w-6 h-[3px] bg-[var(--text)] mb-1" />
         <div className="w-6 h-[3px] bg-[var(--text)]" />
-      </div>
+      </button>
 
       {/* Sidebar */}
       <aside
@@ -89,7 +90,7 @@ export default function HomePage() {
               <input
                 type="search"
                 placeholder="Search problems…"
-                className="w-full bg-transparent outline-none"
+                className="w-full bg-transparent outline-none text-[var(--text)]"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -99,7 +100,7 @@ export default function HomePage() {
             <select
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              className="bg-[var(--card)] border border-[var(--border)] rounded-lg px-3 py-2 shadow"
+              className="bg-[var(--card)] border border-[var(--border)] rounded-lg px-3 py-2 shadow text-[var(--text)]"
             >
               <option value="All">All</option>
               <option value="AI/ML">AI/ML</option>
@@ -133,12 +134,15 @@ export default function HomePage() {
             filtered.map((item) => (
               <article
                 key={item.id}
-                className="relative bg-[var(--card)] border-2 border-[var(--border)] rounded-2xl p-6 shadow transition transform hover:scale-105 hover:shadow-xl cursor-pointer overflow-hidden"
+                className="relative bg-[var(--card)] border-2 border-[var(--border)] rounded-2xl p-6 shadow transition transform hover:scale-105 hover:shadow-xl cursor-pointer overflow-hidden
+                           before:content-[''] before:absolute before:inset-[-3px] before:rounded-2xl before:bg-[linear-gradient(135deg,#ff6ec4,#7873f5,#42e695,#ff9a9e)] before:bg-[length:400%_400%] before:opacity-0 hover:before:opacity-100 before:-z-10 before:transition-opacity before:duration-500"
               >
                 <span className="inline-block text-sm bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-full text-black mb-3">
                   {item.domain} | {item.difficulty}
                 </span>
-                <h3 className="text-xl font-bold mb-2">{item.reframed}</h3>
+                <h3 className="text-xl font-bold mb-2 text-[var(--text)]">
+                  {item.reframed}
+                </h3>
               </article>
             ))
           )}
@@ -147,3 +151,4 @@ export default function HomePage() {
     </main>
   );
 }
+  
