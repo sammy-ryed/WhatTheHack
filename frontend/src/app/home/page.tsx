@@ -1,77 +1,32 @@
-// app/home/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 
 interface Problem {
   id: number;
-  title: string;
-  category: string;
-  blurb: string;
+  reframed: string;
+  domain: string;
+  difficulty: string;
 }
 
 export default function HomePage() {
-  const DATA: Problem[] = [
-    {
-      id: 1,
-      title: "Git Conflict Visualizer",
-      category: "Productivity",
-      blurb:
-        "A web UI that makes merge conflicts easier to resolve, with syntax highlighting and smart suggestions.",
-    },
-    {
-      id: 2,
-      title: "Local File Search Engine",
-      category: "Data",
-      blurb:
-        "Cross-platform Spotlight-style tool that indexes files, supports fuzzy search, and previews content.",
-    },
-    {
-      id: 3,
-      title: "Secrets Scanner",
-      category: "Infrastructure",
-      blurb:
-        "CLI tool that scans repos for hardcoded API keys or secrets before allowing a git push.",
-    },
-    {
-      id: 4,
-      title: "CSV Wrangler",
-      category: "Data",
-      blurb:
-        "Web app that auto-detects issues in CSV/Excel (like duplicates, inconsistent formats) and suggests fixes.",
-    },
-    {
-      id: 5,
-      title: "Docker Image Slimmer",
-      category: "Infrastructure",
-      blurb:
-        "Tool that analyzes a Dockerfile and generates an optimized multi-stage version with reduced image size.",
-    },
-    {
-      id: 6,
-      title: "API Request Recorder/Replayer",
-      category: "Productivity",
-      blurb:
-        "Middleware or CLI that logs requests and lets you replay them for testing without hammering the live API.",
-    },
-  ];
-
+  const [problems, setProblems] = useState<Problem[]>([]);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Filtered items
-  const filtered = DATA.filter((item) => {
-    const matchesFilter = filter === "All" || item.category === filter;
-    const matchesSearch =
-      !search ||
-      item.title.toLowerCase().includes(search.toLowerCase()) ||
-      item.blurb.toLowerCase().includes(search.toLowerCase());
-    return matchesFilter && matchesSearch;
-  });
+  // Fetch from backend
+  useEffect(() => {
+    fetch("/api/problems")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) setProblems(data);
+      })
+      .catch(() => setProblems([]));
+  }, []);
 
-  // Apply theme on load + toggle
+  // Apply theme
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("theme", theme);
@@ -81,6 +36,16 @@ export default function HomePage() {
     const saved = (localStorage.getItem("theme") as "light" | "dark") || "light";
     setTheme(saved);
   }, []);
+
+  // Filter + search logic
+  const filtered = problems.filter((item) => {
+    const matchesFilter = filter === "All" || item.domain === filter;
+    const matchesSearch =
+      !search ||
+      item.reframed.toLowerCase().includes(search.toLowerCase()) ||
+      item.domain.toLowerCase().includes(search.toLowerCase());
+    return matchesFilter && matchesSearch;
+  });
 
   return (
     <main className="min-h-screen bg-[var(--bg)] text-[var(--text)] transition-colors">
@@ -101,17 +66,11 @@ export default function HomePage() {
         }`}
       >
         <h2 className="text-2xl font-bold">Menu</h2>
-        <a href="#" className="hover:text-purple-500 text-lg">
-          Home
+        <a href="/" className="hover:text-purple-500 text-lg">
+          Landing
         </a>
-        <a href="#" className="hover:text-purple-500 text-lg">
-          Problem Statements
-        </a>
-        <a href="#" className="hover:text-purple-500 text-lg">
-          Submit Solutions
-        </a>
-        <a href="#" className="hover:text-purple-500 text-lg">
-          About Us
+        <a href="/feed" className="hover:text-purple-500 text-lg">
+          Problem Feed
         </a>
       </aside>
 
@@ -129,7 +88,7 @@ export default function HomePage() {
               </svg>
               <input
                 type="search"
-                placeholder="Search items…"
+                placeholder="Search problems…"
                 className="w-full bg-transparent outline-none"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -143,9 +102,12 @@ export default function HomePage() {
               className="bg-[var(--card)] border border-[var(--border)] rounded-lg px-3 py-2 shadow"
             >
               <option value="All">All</option>
-              <option value="Productivity">Productivity</option>
-              <option value="Data">Data</option>
-              <option value="Infrastructure">Infrastructure</option>
+              <option value="AI/ML">AI/ML</option>
+              <option value="FinTech">FinTech</option>
+              <option value="Blockchain">Blockchain</option>
+              <option value="HealthTech">HealthTech</option>
+              <option value="WebDev">WebDev</option>
+              <option value="General Tech">General Tech</option>
             </select>
 
             {/* Theme toggle */}
@@ -157,7 +119,7 @@ export default function HomePage() {
             </button>
           </div>
           <div className="text-sm text-[var(--muted)]">
-            Showing {filtered.length} item{filtered.length !== 1 ? "s" : ""}
+            Showing {filtered.length} problem{filtered.length !== 1 ? "s" : ""}
           </div>
         </div>
 
@@ -173,11 +135,10 @@ export default function HomePage() {
                 key={item.id}
                 className="relative bg-[var(--card)] border-2 border-[var(--border)] rounded-2xl p-6 shadow transition transform hover:scale-105 hover:shadow-xl cursor-pointer overflow-hidden"
               >
-                <span className="cat inline-block text-sm bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-full text-black mb-3">
-                  {item.category}
+                <span className="inline-block text-sm bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-full text-black mb-3">
+                  {item.domain} | {item.difficulty}
                 </span>
-                <h3 className="text-xl font-bold mb-2">{item.title}</h3>
-                <p className="text-gray-600">{item.blurb}</p>
+                <h3 className="text-xl font-bold mb-2">{item.reframed}</h3>
               </article>
             ))
           )}
