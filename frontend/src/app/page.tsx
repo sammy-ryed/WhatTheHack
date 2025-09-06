@@ -8,9 +8,16 @@ interface StoredProblem {
   domain: string;
   difficulty: string;
 }
-
+interface RedditProblem {
+  reframed: string;
+  domain: string;
+  difficulty: string;
+}
 export default function FeedPage() {
-  const [redditProblems, setRedditProblems] = useState<string[]>([]);
+  
+
+const [redditProblems, setRedditProblems] = useState<RedditProblem[]>([]);
+
   const [storedProblems, setStoredProblems] = useState<StoredProblem[]>([]);
   const [loadingReddit, setLoadingReddit] = useState(true);
   const [loadingStored, setLoadingStored] = useState(true);
@@ -76,16 +83,19 @@ export default function FeedPage() {
             <p className="text-gray-400">Loading Reddit problems...</p>
           ) : redditProblems.length > 0 ? (
             redditProblems.map((p, x) => (
-              <div key={x} className="bg-gray-900 p-4 rounded space-y-2">
-                <p>{p}</p>
-                <button
-                  onClick={() => handleSave(p)}
-                  disabled={saving === p}
-                  className="px-3 py-1 rounded bg-green-600 hover:bg-green-500 disabled:opacity-50"
-                >
-                  {saving === p ? "⏳ Saving..." : "💾 Save & Reframe"}
-                </button>
-              </div>
+  <div key={x} className="bg-gray-900 p-4 rounded space-y-2">
+    <h3 className="font-bold">{p.reframed}</h3>
+    <p className="text-sm text-gray-400">
+      Domain: {p.domain} | Difficulty: {p.difficulty}
+    </p>
+    <button
+      onClick={() => handleSave(p.reframed)}
+      disabled={saving === p.reframed}
+      className="px-3 py-1 rounded bg-green-600 hover:bg-green-500 disabled:opacity-50"
+    >
+      {saving === p.reframed ? "⏳ Saving..." : "💾 Save & Reframe"}
+    </button>
+  </div>
             ))
           ) : (
             <p className="text-gray-400">No Reddit problems found.</p>

@@ -1,11 +1,11 @@
 import os
-from dotenv import load_dotenv
+import json
 import pymysql
+import praw
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from pydantic import BaseModel
 from openai import OpenAI
-import praw
-import json
 
 # ---------------------------
 # Load environment variables
@@ -18,6 +18,9 @@ DB_PASSWORD = os.getenv("DB_PASSWORD", "")
 DB_NAME = os.getenv("DB_NAME", "whatthehack")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
+# ---------------------------
+# Init Reddit client
+# ---------------------------
 reddit = praw.Reddit(
     client_id=os.getenv("REDDIT_CLIENT_ID"),
     client_secret=os.getenv("REDDIT_CLIENT_SECRET"),
@@ -35,7 +38,7 @@ app = FastAPI()
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 # ---------------------------
-# Connect to MySQL with PyMySQL
+# Connect to MySQL
 # ---------------------------
 try:
     db = pymysql.connect(
@@ -67,6 +70,7 @@ print("✅ Table 'problems' is ready")
 # Helper: Scrape Reddit
 # ---------------------------
 def scrape_reddit(subreddit_list, keywords):
+    """Scrape hot posts from given subreddits if they match keywords"""
     problems = []
     for name in subreddit_list:
         try:
@@ -77,16 +81,17 @@ def scrape_reddit(subreddit_list, keywords):
                 if submission.selftext:
                     text += " " + submission.selftext
                 text = text.strip()
+
                 if len(text.split()) <= 8:
                     continue
                 if any(kw in text.lower() for kw in keywords):
                     problems.append(text)
         except Exception as e:
-            print(f"⚠️ Skipping {name}: {e}")
+            print(f"⚠️ Skipping subreddit {name}: {e}")
     return problems
 
 # ---------------------------
-# Request body
+# Request body schema
 # ---------------------------
 class ProblemRequest(BaseModel):
     text: str
@@ -96,47 +101,57 @@ class ProblemRequest(BaseModel):
 # ---------------------------
 @app.post("/reframe")
 def reframe_problem(req: ProblemRequest):
+    """Reframe a single user problem into hackathon format"""
     print(f"📩 Received problem: {req.text}")
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "You are an assistant that reframes raw user problems into hackathon-style challenges. Also classify into domain and difficulty."},
-            {"role": "user", "content": req.text}
-        ],
-        response_format={
-            "type": "json_schema",
-            "json_schema": {
-                "name": "reframed_problem",
-                "schema": {
-                    "type": "object",
-                    "properties": {
-                        "reframed": {"type": "string"},
-                        "domain": {"type": "string"},
-                        "difficulty": {"type": "string"}
-                    },
-                    "required": ["reframed", "domain", "difficulty"]
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are an assistant that reframes raw user problems into hackathon-style challenges. Also classify into domain and difficulty."
+                },
+                {"role": "user", "content": req.text}
+            ],
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "reframed_problem",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "reframed": {"type": "string"},
+                            "domain": {"type": "string"},
+                            "difficulty": {"type": "string"}
+                        },
+                        "required": ["reframed", "domain", "difficulty"]
+                    }
                 }
             }
-        }
-    )
+        )
 
-    result = response.choices[0].message.parsed
-    cursor.execute(
-        "INSERT INTO problems (text, reframed, domain, difficulty) VALUES (%s, %s, %s, %s)",
-        (req.text, result["reframed"], result["domain"], result["difficulty"])
-    )
-    db.commit()
-    print(f"✨ Reframed: {result['reframed']} | Domain: {result['domain']} | Difficulty: {result['difficulty']}")
-    print("💾 Saved to database")
+        # Safer: use content instead of `.parsed`
+        result = json.loads(response.choices[0].message.content)
 
-    return result
+        cursor.execute(
+            "INSERT INTO problems (text, reframed, domain, difficulty) VALUES (%s, %s, %s, %s)",
+            (req.text, result["reframed"], result["domain"], result["difficulty"])
+        )
+        db.commit()
+        print(f"✨ Reframed: {result['reframed']} | Domain: {result['domain']} | Difficulty: {result['difficulty']}")
+        return result
+
+    except Exception as e:
+        print(f"❌ OpenAI/DB error: {e}")
+        return {"error": "Failed to process problem"}
 
 @app.get("/fetch")
 def fetch_route():
+    """Scrape Reddit, reframe posts, and save to DB"""
     subreddits = [
         "techsupport", "learnprogramming", "webdev", "Entrepreneur",
-        "cscareerquestions", "CSStudents", "AskProgramming",
+        "cscareerquestions", "AskProgramming",
         "buildapc", "linuxquestions", "applehelp"
     ]
     keywords = [
@@ -144,38 +159,58 @@ def fetch_route():
         "doesn't", "won't", "help", "stuck", "crash", "bug", "fail", "broken"
     ]
 
-    raw_posts = scrape_reddit(subreddits, keywords)
+    # Scrape max 10 posts
+    raw_posts = scrape_reddit(subreddits, keywords)[:10]
     if not raw_posts:
         return {"problems": []}
 
-    # 🔹 Only take the first 10 posts
-    raw_posts = raw_posts[:10]
-
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": """
-You are an assistant that extracts real problems from Reddit posts.
-Keep any post that clearly describes a challenge, bug, question, or obstacle.
-Even if small or casual, keep it.
-Discard memes, vague discussions, or irrelevant posts.
-Return a JSON object with a key 'problems' containing an array of problem statements.
-            """},
-            {"role": "user", "content": "\n".join(raw_posts)}
-        ],
-        response_format={"type": "json_object"}
-    )
-
     try:
-        filtered = json.loads(response.choices[0].message.content)
-        problems = filtered.get("problems", [])
-    except Exception as e:
-        print("❌ JSON parse error:", e)
-        problems = []
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": """
+You are an assistant that reframes Reddit posts into hackathon-style problems.
+For each input post, return JSON with:
+- reframed: problem statement
+- domain: choose from [AI/ML, FinTech, Blockchain, HealthTech, WebDev, General Tech]
+- difficulty: Easy, Medium, or Hard
+Return {"problems": [ ... ]}.
+"""
+                },
+                {"role": "user", "content": json.dumps(raw_posts)}
+            ],
+            response_format={"type": "json_object"}
+        )
 
-    return {"problems": problems}
+        parsed = json.loads(response.choices[0].message.content)
+        problems = parsed.get("problems", [])
+
+        # Save each problem into DB
+        for idx, p in enumerate(problems):
+            try:
+                cursor.execute(
+                    "INSERT INTO problems (text, reframed, domain, difficulty) VALUES (%s, %s, %s, %s)",
+                    (
+                        raw_posts[idx],
+                        p.get("reframed", ""),
+                        p.get("domain", ""),
+                        p.get("difficulty", "")
+                    )
+                )
+            except Exception as e:
+                print(f"⚠️ DB insert failed: {e}")
+        db.commit()
+
+        return {"problems": problems}
+
+    except Exception as e:
+        print(f"❌ Error in batch OpenAI processing: {e}")
+        return {"problems": []}
 
 @app.get("/problems")
 def list_problems():
+    """List all problems stored in DB"""
     cursor.execute("SELECT * FROM problems ORDER BY id DESC")
     return cursor.fetchall()
