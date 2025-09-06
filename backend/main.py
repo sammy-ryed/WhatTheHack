@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from openai import OpenAI
 import praw
 import requests
-
+import json
 
 # ---------------------------
 # Load environment variables
@@ -59,11 +59,37 @@ cursor.execute("""
     CREATE TABLE IF NOT EXISTS problems (
         id INT AUTO_INCREMENT PRIMARY KEY,
         text TEXT,
-        reframed TEXT
+        reframed TEXT,
+        domain VARCHAR(255),
+        difficulty VARCHAR(255)
     )
 """)
-
 print("✅ Table 'problems' is ready")
+
+# ---------------------------
+# Helper: Scrape Reddit
+# ---------------------------
+def scrape_reddit(subreddit_list, keywords):
+    problems = []
+    for name in subreddit_list:
+        try:
+            for submission in reddit.subreddit(name).hot(limit=15):
+                if submission.stickied:
+                    continue
+
+                text = submission.title
+                if submission.selftext:
+                    text += " " + submission.selftext
+                text = text.strip()
+
+                if len(text.split()) <= 8:
+                    continue
+
+                if any(kw in text.lower() for kw in keywords):
+                    problems.append(text)
+        except Exception as e:
+            print(f"⚠️ Skipping {name}: {e}")
+    return problems
 
 # ---------------------------
 # Request body
@@ -78,7 +104,6 @@ class ProblemRequest(BaseModel):
 def reframe_problem(req: ProblemRequest):
     print(f"📩 Received problem: {req.text}")
     
-    # Call OpenAI
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
@@ -106,7 +131,6 @@ def reframe_problem(req: ProblemRequest):
 
     print(f"✨ Reframed: {reframed} | Domain: {domain} | Difficulty: {difficulty}")
 
-    # Insert into DB
     cursor.execute(
         "INSERT INTO problems (text, reframed, domain, difficulty) VALUES (%s, %s, %s, %s)",
         (req.text, reframed, domain, difficulty)
@@ -115,19 +139,46 @@ def reframe_problem(req: ProblemRequest):
     print("💾 Saved to database")
 
     return result
+
 @app.get("/fetch")
-def fetch_problems():
-    problems = []
+def fetch_route():
+    subreddits = [
+        "techsupport", "learnprogramming", "webdev", "Entrepreneur",
+        "cscareerquestions", "CSStudents", "AskProgramming",
+        "buildapc", "linuxquestions", "applehelp"
+    ]
 
-    # 🔹 Reddit example
-    for submission in reddit.subreddit("technology").hot(limit=5):
-        problems.append(submission.title)
+    keywords = [
+        "how", "why", "error", "issue", "problem", "can't", "cannot",
+        "doesn't", "won't", "help", "stuck", "crash", "bug", "fail", "broken"
+    ]
 
-# 🔹 GitHub Issues example
-    """gh_res = requests.get("https://api.github.com/repos/vercel/next.js/issues")
-    if gh_res.ok:
-        for issue in gh_res.json()[:5]:
-            problems.append(issue["title"])"""
+    raw_posts = scrape_reddit(subreddits, keywords)
+
+    if not raw_posts:
+        return {"problems": []}
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": """
+You are an assistant that extracts real problems from Reddit posts.
+Keep any post that clearly describes a challenge, bug, question, or obstacle.
+Even if small or casual, keep it.
+Discard memes, vague discussions, or irrelevant posts.
+Return a JSON object with a key 'problems' containing an array of problem statements.
+            """},
+            {"role": "user", "content": "\n".join(raw_posts)}
+        ],
+        response_format={"type": "json_object"}
+    )
+
+    try:
+        filtered = json.loads(response.choices[0].message.content)
+        problems = filtered.get("problems", [])
+    except Exception as e:
+        print("❌ JSON parse error:", e)
+        problems = []
 
     return {"problems": problems}
 
