@@ -121,6 +121,50 @@ def fetch_github_issues(repos, state="open", per_repo=10):
     return issues
 
 # ---------------------------
+# Random GitHub repo selection
+# ---------------------------
+github_repos_by_domain = {
+    "Developer Tools": [
+        "getfider/fider",
+        "atom/atom",
+        "instill-ai/community",
+        "isaacs/github"
+    ],
+    "Frontend/Web": [
+        "facebook/react",
+        "angular/angular"
+    ],
+    "Finance/Crypto": [
+        "MetaMask/metamask-extension",
+        "ledgerhq/ledger-live-desktop"
+    ],
+    "Communication/Productivity": [
+        "signalapp/Signal-Android",
+        "obsidianmd/obsidian-releases"
+    ]
+}
+
+def get_random_github_repos(min_per_group=1, max_per_group=2):
+    """
+    Returns a shuffled list of GitHub repos, picking a random number per category.
+    Ensures diversity across categories.
+    """
+    selected = []
+
+    # Shuffle groups to randomize order
+    groups = list(github_repos_by_domain.keys())
+    random.shuffle(groups)
+
+    for group in groups:
+        repos = github_repos_by_domain[group]
+        count = random.randint(min_per_group, min(max_per_group, len(repos)))
+        selected += random.sample(repos, count)
+
+    # Shuffle final list so order isn't predictable
+    random.shuffle(selected)
+    return selected
+
+# ---------------------------
 # Reddit Scraper
 # ---------------------------
 def scrape_reddit(subreddit_list, keywords):
@@ -152,11 +196,26 @@ domain_subreddits = {
     "Mis.": ["india", "indiaspeaks", "unitedstatesofindia", "indianteenagers"]
 }
 
-def get_random_subreddits_per_domain(n_per_domain=1):
+def get_random_subreddits_per_domain(min_per_domain=1, max_per_domain=2):
+    """
+    Returns a shuffled list of subreddits, picking 1–2 subreddits per domain.
+    Ensures all domains are represented.
+    """
     selected = []
-    for domain, subs in domain_subreddits.items():
-        selected += random.sample(subs, min(n_per_domain, len(subs)))
+
+    # Shuffle domains for randomness
+    domains = list(domain_subreddits.keys())
+    random.shuffle(domains)
+
+    for domain in domains:
+        subs = domain_subreddits[domain]
+        count = random.randint(min_per_domain, min(max_per_domain, len(subs)))
+        selected += random.sample(subs, count)
+
+    # Shuffle the final list to mix domains
+    random.shuffle(selected)
     return selected
+
 
 # ---------------------------
 # Combined Fetch Route
@@ -168,18 +227,8 @@ def get_random_subreddits_per_domain(n_per_domain=1):
 def fetch_combined_route():
     """Fetch 4 GitHub + 2 Reddit problems, reframe with description, round-robin merge, save to DB."""
     
-    github_repos = [
-        "getfider/fider",
-        "atom/atom",
-        "instill-ai/community",
-        "isaacs/github",
-        "facebook/react",
-        "angular/angular",
-        "MetaMask/metamask-extension",
-        "ledgerhq/ledger-live-desktop",
-        "signalapp/Signal-Android",
-        "obsidianmd/obsidian-releases"
-    ]
+    github_repos = get_random_github_repos(min_per_group=1, max_per_group=2)
+
 
     # ---------------------------
     # Fetch GitHub issues
@@ -201,10 +250,10 @@ Rules:
 
 For each valid issue, output:
 - title: catchy 3–5 word title
-- reframed: one-line hackathon-ready statement
+- reframed: a hackathon styly problem statment
 - small_description: 1–2 sentence brief explanation
 - description: detailed 2–3 sentence explanation + suggested solution idea
-- domain: [AI/ML, FinTech, Blockchain, HealthTech, WebDev, General Tech]
+- domain: [AI/ML, FinTech, Blockchain, HealthTech, WebDev, General Tech, RAG ]
 - difficulty: Easy / Medium / Hard
 - text: optional, raw GitHub issue text
 
@@ -222,11 +271,12 @@ Return JSON: {"problems": [ ... ]}
     # ---------------------------
     # Fetch Reddit posts
     # ---------------------------
-    subreddits = get_random_subreddits_per_domain(n_per_domain=2)
+    subreddits = get_random_subreddits_per_domain(min_per_domain=1, max_per_domain=2)
+
     keywords = [
         "how", "why", "error", "issue", "problem", "can't", "cannot",
         "doesn't", "won't", "help", "stuck", "crash", "bug", "fail", "broken",
-        "struggle", "challenge", "confused", "question", "need", "worried"
+        "struggle", "challenge", "confused", "question", "need", "worried", "doesn't work", 'nothing works', 'useless', 'i wish there was', 'i hope there was a', 'what if'
     ]
     raw_reddit = scrape_reddit(subreddits, keywords)[:15]
 
@@ -321,3 +371,4 @@ def list_problems():
     except Exception as e:
         print(f"❌ Error in /problems: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
+

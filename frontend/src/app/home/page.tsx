@@ -15,7 +15,8 @@ interface Problem {
 export default function HomePage() {
   const [problems, setProblems] = useState<Problem[]>([]);
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("All");
+  const [domainFilter, setDomainFilter] = useState("All");
+  const [difficultyFilter, setDifficultyFilter] = useState("All");
   const [theme, setTheme] = useState<"light" | "dark">("dark"); // default dark
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedProblem, setSelectedProblem] = useState<Problem | null>(null);
@@ -44,13 +45,14 @@ export default function HomePage() {
 
   // Filter + search logic
   const filtered = problems.filter((item) => {
-    const matchesFilter = filter === "All" || item.domain === filter;
+    const matchesDomain = domainFilter === "All" || item.domain === domainFilter;
+    const matchesDifficulty = difficultyFilter === "All" || item.difficulty === difficultyFilter;
     const matchesSearch =
       !search ||
       item.title.toLowerCase().includes(search.toLowerCase()) ||
       item.reframed.toLowerCase().includes(search.toLowerCase()) ||
       item.domain.toLowerCase().includes(search.toLowerCase());
-    return matchesFilter && matchesSearch;
+    return matchesDomain && matchesDifficulty && matchesSearch;
   });
 
   return (
@@ -98,19 +100,31 @@ export default function HomePage() {
               />
             </div>
 
-            {/* Filter */}
+            {/* Domain Filter */}
             <select
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
+              value={domainFilter}
+              onChange={(e) => setDomainFilter(e.target.value)}
               className="bg-[var(--card)] border border-[var(--border)] rounded-lg px-3 py-2 shadow text-[var(--text)]"
             >
-              <option value="All">All</option>
+              <option value="All">All Domains</option>
               <option value="AI/ML">AI/ML</option>
               <option value="FinTech">FinTech</option>
               <option value="Blockchain">Blockchain</option>
               <option value="HealthTech">HealthTech</option>
               <option value="WebDev">WebDev</option>
               <option value="General Tech">General Tech</option>
+            </select>
+
+            {/* Difficulty Filter */}
+            <select
+              value={difficultyFilter}
+              onChange={(e) => setDifficultyFilter(e.target.value)}
+              className="bg-[var(--card)] border border-[var(--border)] rounded-lg px-3 py-2 shadow text-[var(--text)]"
+            >
+              <option value="All">All Difficulties</option>
+              <option value="Easy">Easy</option>
+              <option value="Medium">Medium</option>
+              <option value="Hard">Hard</option>
             </select>
 
             {/* Theme toggle */}
