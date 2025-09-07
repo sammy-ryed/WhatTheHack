@@ -13,7 +13,7 @@ interface TeamMember {
 }
 
 const TEAM: TeamMember[] = [
-  { id: 1, name: "Muskan", role: "Fullstack Developer", photo: "muskan.jpg", desc: "Crafting digital magic where pixels meet functionality.", github: "https://github.com/squirrelk6755-ctrl", linkedin: "https://linkedin.com/in/muskan-26919b349/" },
+  { id: 1, name: "Muskan", role: "Frontend Developer", photo: "muskan.jpg", desc: "Crafting digital magic where pixels meet functionality.", github: "https://github.com/squirrelk6755-ctrl", linkedin: "https://linkedin.com/in/muskan-26919b349/" },
   { id: 2, name: "Samarth Ryan Edward", role: "Backend Developer", photo: "samarth.jpg", desc: "poopy pants.", github: "https://github.com/sammy-ryed", linkedin: "https://www.linkedin.com/in/samarth-ryan-edward-a51047352/" },
   { id: 3, name: "Ayush Saini", role: "Frontend Developer", photo: "Ayush Saini.jpg", desc: "Optimizes interfaces for speed and clarity.", github: "https://github.com/saini07ayush", linkedin: "https://linkedin.com/in/saini07ayush" },
   { id: 4, name: "Arvin Mathew Saj", role: "Frontend Designer", photo: "arvin.jpg", desc: "Designs intuitive interfaces that feel natural.", github: "https://github.com/arvin-mathew", linkedin: "https://www.linkedin.com/in/arvin-mathew-564957341/" },
