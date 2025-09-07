@@ -8,6 +8,8 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from openai import OpenAI
+from sentence_transformers import SentenceTransformer
+import numpy as np
 
 # ---------------------------
 # Load environment variables
@@ -96,6 +98,36 @@ if not cursor.fetchone():
     db.commit()
     print("⚡ Added missing column 'description'")
 
+embedder = SentenceTransformer("all-MiniLM-L6-v2")
+
+def cosine_similarity(a, b):
+    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+problem_queries = [
+    "I need help",
+    "This is not working",
+    "I found a bug",
+    "I wish there was a solution",
+    "I am struggling with something",
+    "Looking for advice",
+    "Facing an issue",
+    'how can i implement',
+    "what's the code for",
+    "it was working before but"
+]
+
+# Pre-compute embeddings for speed
+problem_embeddings = embedder.encode(problem_queries)
+def is_problem_post(text, threshold=0.35):
+    """
+    Returns True if the text is semantically close to a 'problem' intent.
+    """
+    text_emb = embedder.encode([text])[0]
+    sims = [cosine_similarity(text_emb, ref_emb) for ref_emb in problem_embeddings]
+    best_score = max(sims)
+    
+    return best_score >= threshold
+
+
 
 # ---------------------------
 # GitHub Issues Fetcher
@@ -103,21 +135,31 @@ if not cursor.fetchone():
 def fetch_github_issues(repos, state="open", per_repo=10):
     issues = []
     headers = {"Authorization": f"token {GITHUB_TOKEN}"} if GITHUB_TOKEN else {}
+    
     for repo in repos:
         url = f"https://api.github.com/repos/{repo}/issues"
         params = {"state": state, "per_page": per_repo}
+        
         try:
             resp = requests.get(url, headers=headers, params=params)
             resp.raise_for_status()
             data = resp.json()
+            
             for issue in data:
                 if "pull_request" in issue:  # skip PRs
                     continue
+                
                 text = f"{issue['title']}\n{issue.get('body', '')}".strip()
-                if len(text.split()) > 10:  # avoid junk
+                
+                if len(text.split()) <= 10:  # avoid junk
+                    continue
+                
+                if is_problem_post(text):   # ✅ semantic filter
                     issues.append(text)
+        
         except Exception as e:
             print(f"⚠️ Failed to fetch from {repo}: {e}")
+    
     return issues
 
 # ---------------------------
@@ -167,24 +209,22 @@ def get_random_github_repos(min_per_group=1, max_per_group=2):
 # ---------------------------
 # Reddit Scraper
 # ---------------------------
-def scrape_reddit(subreddit_list, keywords):
+def scrape_reddit(subreddit_list):
     problems = []
     for name in subreddit_list:
         try:
             for submission in reddit.subreddit(name).hot(limit=15):
                 if submission.stickied:
                     continue
-                text = submission.title
-                if submission.selftext:
-                    text += " " + submission.selftext
-                text = text.strip()
+                text = (submission.title + " " + submission.selftext).strip()
                 if len(text.split()) <= 8:
                     continue
-                if any(kw in text.lower() for kw in keywords):
+                if is_problem_post(text):   # ✅ semantic filter instead of keywords
                     problems.append(text)
         except Exception as e:
             print(f"⚠️ Skipping subreddit {name}: {e}")
     return problems
+
 
 domain_subreddits = {
     "AI/ML": ["MachineLearning", "datascience", "deeplearning"],
@@ -273,12 +313,9 @@ Return JSON: {"problems": [ ... ]}
     # ---------------------------
     subreddits = get_random_subreddits_per_domain(min_per_domain=1, max_per_domain=2)
 
-    keywords = [
-        "how", "why", "error", "issue", "problem", "can't", "cannot",
-        "doesn't", "won't", "help", "stuck", "crash", "bug", "fail", "broken",
-        "struggle", "challenge", "confused", "question", "need", "worried", "doesn't work", 'nothing works', 'useless', 'i wish there was', 'i hope there was a', 'what if'
-    ]
-    raw_reddit = scrape_reddit(subreddits, keywords)[:15]
+
+    raw_reddit = scrape_reddit(subreddits)[:15]
+
 
     reddit_response = client.chat.completions.create(
         model="gpt-4o-mini",
