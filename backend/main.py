@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 from openai import OpenAI
 from sentence_transformers import SentenceTransformer
 import numpy as np
-
+#from bertopic import BERTopic
 # ---------------------------
 # Load environment variables
 # ---------------------------
@@ -128,6 +128,79 @@ def is_problem_post(text, threshold=0.35):
     return best_score >= threshold
 
 
+sources = {
+    "github": {
+        "Developer Tools": [
+            {"name": "getfider/fider", "description": "Feedback platform for collecting and prioritizing ideas"},
+            {"name": "atom/atom", "description": "Hackable text editor for the 21st century"},
+            {"name": "instill-ai/community", "description": "Open-source community for AI tooling"},
+            {"name": "isaacs/github", "description": "Meta repo for GitHub issues discussions"}
+        ],
+        "Frontend/Web": [
+            {"name": "facebook/react", "description": "A JavaScript library for building user interfaces"},
+            {"name": "angular/angular", "description": "Framework for building scalable web applications"}
+        ],
+        "Finance/Crypto": [
+            {"name": "MetaMask/metamask-extension", "description": "Crypto wallet and gateway to blockchain apps"},
+            {"name": "ledgerhq/ledger-live-desktop", "description": "Ledger Live desktop app for crypto management"}
+        ],
+        "Communication/Productivity": [
+            {"name": "signalapp/Signal-Android", "description": "Private messaging app with end-to-end encryption"},
+            {"name": "obsidianmd/obsidian-releases", "description": "Knowledge base and note-taking app"}
+        ]
+    },
+    "reddit": {
+        "AI/ML": [
+            {"name": "MachineLearning", "description": "Discussions and news about artificial intelligence and machine learning"},
+            {"name": "datascience", "description": "Everything data science: questions, projects, learning"},
+            {"name": "deeplearning", "description": "Deep learning discussions and research"}
+        ],
+        "Blockchain": [
+            {"name": "ethereum", "description": "The hub for Ethereum and blockchain technology"},
+            {"name": "CryptoTechnology", "description": "Advanced discussions about crypto and blockchain"},
+            {"name": "Solana", "description": "Subreddit for the Solana blockchain"},
+            {"name": "web3", "description": "Everything related to Web3 and decentralized apps"},
+            {"name": "NFT", "description": "Non-fungible token news, projects and culture"}
+        ],
+        "HealthTech": [
+            {"name": "DigitalHealth", "description": "Tech and innovation in healthcare and wellbeing"},
+            {"name": "Healthcare", "description": "General discussions about healthcare"},
+            {"name": "medtech", "description": "Medical technologies and devices"},
+            {"name": "Bioinformatics", "description": "Computational biology and bioinformatics"},
+            {"name": "mentalhealth", "description": "Discussions and support around mental health"}
+        ],
+        "WebDev": [
+            {"name": "webdev", "description": "Web development help, tools, and community"},
+            {"name": "learnprogramming", "description": "Help and resources for learning programming"},
+            {"name": "linuxquestions", "description": "Q&A for Linux users"},
+            {"name": "buildapc", "description": "Advice for building PCs"},
+            {"name": "applehelp", "description": "Technical help for Apple devices"},
+            {"name": "Productivity", "description": "Tips and tricks for productivity"}
+        ],
+        "Rant": [
+            {"name": "rant", "description": "A place to vent frustrations"},
+            {"name": "offmychest", "description": "Get things off your chest"},
+            {"name": "findapath", "description": "Life guidance and career struggles"},
+            {"name": "TrueAskReddit", "description": "Ask genuine questions, get real answers"},
+            {"name": "NoStupidQuestions", "description": "Ask anything without judgment"}
+        ],
+        "General Tech": [
+            {"name": "techsupport", "description": "Get help with tech support issues"},
+            {"name": "Entrepreneur", "description": "Startup and entrepreneur discussions"},
+            {"name": "startups", "description": "Community for startup founders"},
+            {"name": "IoT", "description": "Internet of Things projects and ideas"},
+            {"name": "cscareerquestions", "description": "Career advice for computer science students"},
+            {"name": "LifeProTips", "description": "Tips to improve everyday life"},
+            {"name": "antiwork", "description": "Discussions about work, labor and alternatives"}
+        ],
+        "Misc": [
+            {"name": "india", "description": "Discussions about India"},
+            {"name": "indiaspeaks", "description": "Indian current affairs and culture"},
+            {"name": "unitedstatesofindia", "description": "Humor and memes about Indian politics"},
+            {"name": "indianteenagers", "description": "Teenagers in India sharing experiences"}
+        ]
+    }
+}
 
 # ---------------------------
 # GitHub Issues Fetcher
@@ -307,6 +380,9 @@ Return JSON: {"problems": [ ... ]}
 
     parsed_github = json.loads(github_response.choices[0].message.content)
     github_problems = parsed_github.get("problems", [])[:4]
+    for p in github_problems:
+        p["source"] = "github"
+        
 
     # ---------------------------
     # Fetch Reddit posts
@@ -331,14 +407,16 @@ Rules:
 - Generalize the post into a broader problem.
 - Ensure it is hackathon-tackleable.
 
-For each valid post, output:
+For each valid issue, output:
 - title: catchy 3–5 word title
-- reframed: one-line hackathon-ready statement
+- reframed: hackathon-style problem statement
 - small_description: 1–2 sentence brief explanation
 - description: detailed 2–3 sentence explanation + suggested solution idea
-- domain: [AI/ML, FinTech, Blockchain, HealthTech, WebDev, General Tech]
+- domain: [AI/ML, FinTech, Blockchain, HealthTech, WebDev, General Tech, RAG]
 - difficulty: Easy / Medium / Hard
-- text: optional, raw Reddit post text
+- novelty: integer from 1 to 10 (how new/innovative the idea is)
+- text: optional, raw GitHub issue text
+
 
 Return JSON: {"problems": [ ... ]}
 """
@@ -350,6 +428,8 @@ Return JSON: {"problems": [ ... ]}
 
     parsed_reddit = json.loads(reddit_response.choices[0].message.content)
     reddit_problems = parsed_reddit.get("problems", [])[:2]
+    for p in reddit_problems:
+        p["source"] = "reddit"
 
     # ---------------------------
     # Round-robin merge
@@ -373,21 +453,25 @@ Return JSON: {"problems": [ ... ]}
     for p in final_problems:
         try:
             cursor.execute(
-                """
-                INSERT INTO problems
-                (title, text, reframed, small_description, description, domain, difficulty)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-                """,
-                (
-                    p.get("title", ""),
-                    p.get("text", ""),               # raw text optional
-                    p.get("reframed", ""),
-                    p.get("small_description", ""),
-                    p.get("description", ""),
-                    p.get("domain", ""),
-                    p.get("difficulty", "")
-                )
-            )
+                        """
+                        INSERT INTO problems
+                        (title, text, reframed, small_description, description, domain, difficulty, source, novelty)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        """,
+                        (
+                            p.get("title", ""),
+                            p.get("text", ""),
+                            p.get("reframed", ""),
+                            p.get("small_description", ""),
+                            p.get("description", ""),
+                            p.get("domain", ""),
+                            p.get("difficulty", ""),
+                            p.get("source", ""),
+                            p.get("novelty", 0)
+                        )
+                    )
+
+
         except Exception as e:
             print(f"⚠️ DB insert failed: {e}")
     db.commit()
