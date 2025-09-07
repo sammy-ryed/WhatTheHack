@@ -101,7 +101,7 @@ export default function PremiumPage() {
             {profileOpen && (
               <div className="absolute right-0 mt-2 w-48 bg-gray-700 rounded-md shadow-lg py-1 z-20">
                 <div className="block px-4 py-2 text-sm text-gray-300">
-                  Username: JohnDoe
+                  Username: What??
                 </div>
                 <a
                   href="/premium"

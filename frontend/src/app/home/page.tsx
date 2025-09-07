@@ -81,14 +81,15 @@ export default function HomePage() {
         <a href="/" className="hover:text-purple-500 text-lg">
           Landing
         </a>
-        <a href="/about" className="hover:text-purple-500 text-lg">
-          About Us
-        </a>
+        
         <a href="/premium" className="hover:text-purple-500 text-lg">
           WhatTheActualHack
         </a>
         <a href="/settings" className="hover:text-purple-500 text-lg">
           Settings
+        </a>
+        <a href="/about" className="hover:text-purple-500 text-lg">
+          About Us
         </a>
       </aside>
 

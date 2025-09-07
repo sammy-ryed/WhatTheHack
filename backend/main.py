@@ -128,79 +128,7 @@ def is_problem_post(text, threshold=0.29):
     return best_score >= threshold
 
 
-sources = {
-    "github": {
-        "Developer Tools": [
-            {"name": "getfider/fider", "description": "Feedback platform for collecting and prioritizing ideas"},
-            {"name": "atom/atom", "description": "Hackable text editor for the 21st century"},
-            {"name": "instill-ai/community", "description": "Open-source community for AI tooling"},
-            {"name": "isaacs/github", "description": "Meta repo for GitHub issues discussions"}
-        ],
-        "Frontend/Web": [
-            {"name": "facebook/react", "description": "A JavaScript library for building user interfaces"},
-            {"name": "angular/angular", "description": "Framework for building scalable web applications"}
-        ],
-        "Finance/Crypto": [
-            {"name": "MetaMask/metamask-extension", "description": "Crypto wallet and gateway to blockchain apps"},
-            {"name": "ledgerhq/ledger-live-desktop", "description": "Ledger Live desktop app for crypto management"}
-        ],
-        "Communication/Productivity": [
-            {"name": "signalapp/Signal-Android", "description": "Private messaging app with end-to-end encryption"},
-            {"name": "obsidianmd/obsidian-releases", "description": "Knowledge base and note-taking app"}
-        ]
-    },
-    "reddit": {
-        "AI/ML": [
-            {"name": "MachineLearning", "description": "Discussions and news about artificial intelligence and machine learning"},
-            {"name": "datascience", "description": "Everything data science: questions, projects, learning"},
-            {"name": "deeplearning", "description": "Deep learning discussions and research"}
-        ],
-        "Blockchain": [
-            {"name": "ethereum", "description": "The hub for Ethereum and blockchain technology"},
-            {"name": "CryptoTechnology", "description": "Advanced discussions about crypto and blockchain"},
-            {"name": "Solana", "description": "Subreddit for the Solana blockchain"},
-            {"name": "web3", "description": "Everything related to Web3 and decentralized apps"},
-            {"name": "NFT", "description": "Non-fungible token news, projects and culture"}
-        ],
-        "HealthTech": [
-            {"name": "DigitalHealth", "description": "Tech and innovation in healthcare and wellbeing"},
-            {"name": "Healthcare", "description": "General discussions about healthcare"},
-            {"name": "medtech", "description": "Medical technologies and devices"},
-            {"name": "Bioinformatics", "description": "Computational biology and bioinformatics"},
-            {"name": "mentalhealth", "description": "Discussions and support around mental health"}
-        ],
-        "WebDev": [
-            {"name": "webdev", "description": "Web development help, tools, and community"},
-            {"name": "learnprogramming", "description": "Help and resources for learning programming"},
-            {"name": "linuxquestions", "description": "Q&A for Linux users"},
-            {"name": "buildapc", "description": "Advice for building PCs"},
-            {"name": "applehelp", "description": "Technical help for Apple devices"},
-            {"name": "Productivity", "description": "Tips and tricks for productivity"}
-        ],
-        "Rant": [
-            {"name": "rant", "description": "A place to vent frustrations"},
-            {"name": "offmychest", "description": "Get things off your chest"},
-            {"name": "findapath", "description": "Life guidance and career struggles"},
-            {"name": "TrueAskReddit", "description": "Ask genuine questions, get real answers"},
-            {"name": "NoStupidQuestions", "description": "Ask anything without judgment"}
-        ],
-        "General Tech": [
-            {"name": "techsupport", "description": "Get help with tech support issues"},
-            {"name": "Entrepreneur", "description": "Startup and entrepreneur discussions"},
-            {"name": "startups", "description": "Community for startup founders"},
-            {"name": "IoT", "description": "Internet of Things projects and ideas"},
-            {"name": "cscareerquestions", "description": "Career advice for computer science students"},
-            {"name": "LifeProTips", "description": "Tips to improve everyday life"},
-            {"name": "antiwork", "description": "Discussions about work, labor and alternatives"}
-        ],
-        "Misc": [
-            {"name": "india", "description": "Discussions about India"},
-            {"name": "indiaspeaks", "description": "Indian current affairs and culture"},
-            {"name": "unitedstatesofindia", "description": "Humor and memes about Indian politics"},
-            {"name": "indianteenagers", "description": "Teenagers in India sharing experiences"}
-        ]
-    }
-}
+
 
 # ---------------------------
 # GitHub Issues Fetcher
@@ -301,11 +229,11 @@ def scrape_reddit(subreddit_list):
 
 domain_subreddits = {
     "AI/ML": ["MachineLearning", "datascience", "deeplearning"],
-    "Rant": ["rant", "offmychest", "findapath", "TrueAskReddit", "NoStupidQuestions"],
+    "Rant": ["rant", "offmychest",  "TrueAskReddit", "NoStupidQuestions"],
     "Blockchain": ["ethereum", "CryptoTechnology", "Solana", "web3", "NFT"],
     "HealthTech": ["SocialSkills", "DigitalHealth", "medtech", "Bioinformatics", "Healthcare", "mentalhealth" ],
     "WebDev": ["webdev", "learnprogramming", "linuxquestions", "buildapc", "applehelp", "Productivity"],
-    "General Tech": ["techsupport", "Entrepreneur", "startups", "IoT", "cscareerquestions", "LifeProTips", "TrueAskReddit", "antiwork"],
+    "General Tech": ["techsupport", "Entrepreneur", "startups", "IoT", "LifeProTips", "TrueAskReddit"],
     "Mis.": ["india", "indiaspeaks", "unitedstatesofindia", "indianteenagers"]
 }
 
