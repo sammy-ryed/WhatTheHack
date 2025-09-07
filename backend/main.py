@@ -117,7 +117,7 @@ problem_queries = [
 
 # Pre-compute embeddings for speed
 problem_embeddings = embedder.encode(problem_queries)
-def is_problem_post(text, threshold=0.29):
+def is_problem_post(text, threshold=0.32):
     """
     Returns True if the text is semantically close to a 'problem' intent.
     """
@@ -268,7 +268,7 @@ def get_random_subreddits_per_domain(min_per_domain=1, max_per_domain=2):
 def fetch_combined_route():
     """Fetch 4 GitHub + 2 Reddit problems, reframe with description, round-robin merge, save to DB."""
     
-    github_repos = get_random_github_repos(min_per_group=1, max_per_group=3)
+    github_repos = get_random_github_repos(min_per_group=2, max_per_group=3)
 
 
     # ---------------------------
@@ -315,7 +315,7 @@ Return JSON: {"problems": [ ... ]}
     # ---------------------------
     # Fetch Reddit posts
     # ---------------------------
-    subreddits = get_random_subreddits_per_domain(min_per_domain=1, max_per_domain=3)
+    subreddits = get_random_subreddits_per_domain(min_per_domain=2, max_per_domain=4)
 
 
     raw_reddit = scrape_reddit(subreddits)[:15]

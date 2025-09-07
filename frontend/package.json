@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint"
   },
+  
   "dependencies": {
     "next": "15.5.2",
     "react": "19.1.0",
