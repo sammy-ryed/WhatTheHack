@@ -24,7 +24,7 @@ export default function LandingPage() {
 
       {/* Centered content */}
       <div className="content absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center text-white">
-        <h1 className="text-5xl font-bold mb-6 drop-shadow-lg">Welcome to WhatTheHack</h1>
+        <h1 className="text-5xl font-bold mb-6 drop-shadow-lg">WhatTheHack</h1>
         <p className="text-xl mb-8 drop-shadow-md">Where Problems Find You</p>
 
         <Link href="/home">

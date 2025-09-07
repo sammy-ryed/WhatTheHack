@@ -1,12 +1,12 @@
 import os
 import json
 import random
+import requests
 import pymysql
 import praw
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
 from openai import OpenAI
 
 # ---------------------------
@@ -19,15 +19,7 @@ DB_USER = os.getenv("DB_USER", "root")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "")
 DB_NAME = os.getenv("DB_NAME", "whatthehack")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
-# ---------------------------
-# Init Reddit client
-# ---------------------------
-reddit = praw.Reddit(
-    client_id=os.getenv("REDDIT_CLIENT_ID"),
-    client_secret=os.getenv("REDDIT_CLIENT_SECRET"),
-    user_agent=os.getenv("REDDIT_USER_AGENT")
-)
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 
 if not OPENAI_API_KEY:
     raise ValueError("❌ OPENAI_API_KEY not found. Check your .env file.")
@@ -38,6 +30,15 @@ print("✅ OpenAI API key loaded")
 # ---------------------------
 app = FastAPI()
 client = OpenAI(api_key=OPENAI_API_KEY)
+
+# ---------------------------
+# Init Reddit client
+# ---------------------------
+reddit = praw.Reddit(
+    client_id=os.getenv("REDDIT_CLIENT_ID"),
+    client_secret=os.getenv("REDDIT_CLIENT_SECRET"),
+    user_agent=os.getenv("REDDIT_USER_AGENT")
+)
 
 # ---------------------------
 # DB connection helper
@@ -58,6 +59,7 @@ def get_cursor():
         )
     return db.cursor()
 
+# Init DB
 # Init DB
 try:
     db = pymysql.connect(
@@ -87,8 +89,39 @@ cursor.execute("""
 db.commit()
 print("✅ Table 'problems' is ready")
 
+# --- Auto-migrate: check and add 'description' if missing ---
+cursor.execute("SHOW COLUMNS FROM problems LIKE 'description'")
+if not cursor.fetchone():
+    cursor.execute("ALTER TABLE problems ADD COLUMN description TEXT AFTER reframed")
+    db.commit()
+    print("⚡ Added missing column 'description'")
+
+
 # ---------------------------
-# Helper: Scrape Reddit
+# GitHub Issues Fetcher
+# ---------------------------
+def fetch_github_issues(repos, state="open", per_repo=10):
+    issues = []
+    headers = {"Authorization": f"token {GITHUB_TOKEN}"} if GITHUB_TOKEN else {}
+    for repo in repos:
+        url = f"https://api.github.com/repos/{repo}/issues"
+        params = {"state": state, "per_page": per_repo}
+        try:
+            resp = requests.get(url, headers=headers, params=params)
+            resp.raise_for_status()
+            data = resp.json()
+            for issue in data:
+                if "pull_request" in issue:  # skip PRs
+                    continue
+                text = f"{issue['title']}\n{issue.get('body', '')}".strip()
+                if len(text.split()) > 10:  # avoid junk
+                    issues.append(text)
+        except Exception as e:
+            print(f"⚠️ Failed to fetch from {repo}: {e}")
+    return issues
+
+# ---------------------------
+# Reddit Scraper
 # ---------------------------
 def scrape_reddit(subreddit_list, keywords):
     problems = []
@@ -101,7 +134,6 @@ def scrape_reddit(subreddit_list, keywords):
                 if submission.selftext:
                     text += " " + submission.selftext
                 text = text.strip()
-
                 if len(text.split()) <= 8:
                     continue
                 if any(kw in text.lower() for kw in keywords):
@@ -110,154 +142,175 @@ def scrape_reddit(subreddit_list, keywords):
             print(f"⚠️ Skipping subreddit {name}: {e}")
     return problems
 
-# ---------------------------
-# Random subreddit selection per domain
-# ---------------------------
 domain_subreddits = {
     "AI/ML": ["MachineLearning", "datascience", "deeplearning"],
-    "FinTech": ["FinTech", "personalfinance", "financialindependence", "cryptocurrency"],
+    "Rant": ["rant", "offmychest", "findapath", "TrueAskReddit", "NoStupidQuestions"],
     "Blockchain": ["ethereum", "CryptoTechnology", "Solana", "web3", "NFT"],
-    "HealthTech": ["healthIT", "DigitalHealth", "medtech", "Bioinformatics", "Healthcare"],
-    "WebDev": ["webdev", "learnprogramming", "linuxquestions", "buildapc", "applehelp"],
-    "General Tech": ["techsupport", "Entrepreneur", "startups", "IoT", "cscareerquestions"]
+    "HealthTech": ["SocialSkills", "DigitalHealth", "medtech", "Bioinformatics", "Healthcare", "mentalhealth" ],
+    "WebDev": ["webdev", "learnprogramming", "linuxquestions", "buildapc", "applehelp", "Productivity"],
+    "General Tech": ["techsupport", "Entrepreneur", "startups", "IoT", "cscareerquestions", "LifeProTips", "TrueAskReddit", "antiwork"],
+    "Mis.": ["india", "indiaspeaks", "unitedstatesofindia", "indianteenagers"]
 }
 
-def get_random_subreddits_per_domain(n_per_domain=2):
+def get_random_subreddits_per_domain(n_per_domain=1):
     selected = []
     for domain, subs in domain_subreddits.items():
         selected += random.sample(subs, min(n_per_domain, len(subs)))
     return selected
 
 # ---------------------------
-# Request body schema
+# Combined Fetch Route
 # ---------------------------
-class ProblemRequest(BaseModel):
-    text: str
-
 # ---------------------------
-# Routes
+# Combined Fetch Route (Rewritten)
 # ---------------------------
-@app.post("/reframe")
-def reframe_problem(req: ProblemRequest):
-    """Reframe a single user problem into hackathon format and generate title"""
-    cursor = get_cursor()
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "system",
-                    "content": """
-You are an assistant that reframes raw user problems into hackathon-style challenges.
-Also, generate a very short catchy title (max 5 words) for the problem.
-Classify the problem into domain and difficulty.
-"""
-                },
-                {"role": "user", "content": req.text}
-            ],
-            response_format={
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "reframed_problem",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "title": {"type": "string"},
-                            "reframed": {"type": "string"},
-                            "domain": {"type": "string"},
-                            "difficulty": {"type": "string"}
-                        },
-                        "required": ["title", "reframed", "domain", "difficulty"]
-                    }
-                }
-            }
-        )
-
-        result = json.loads(response.choices[0].message.content)
-
-        cursor.execute(
-            "INSERT INTO problems (title, text, reframed, domain, difficulty) VALUES (%s, %s, %s, %s, %s)",
-            (result["title"], req.text, result["reframed"], result["domain"], result["difficulty"])
-        )
-        db.commit()
-        return result
-
-    except Exception as e:
-        print(f"❌ Error in /reframe: {e}")
-        return JSONResponse(status_code=500, content={"error": str(e)})
-
-@app.get("/fetch")
-def fetch_route():
-    """Scrape Reddit, generate titles, reframe posts, save to DB, and show debug info"""
-    subreddits = get_random_subreddits_per_domain(n_per_domain=2)
-    print("🔹 Selected subreddits for this fetch:", subreddits)
-
-    keywords = [
-        "how", "why", "error", "issue", "problem", "can't", "cannot",
-        "doesn't", "won't", "help", "stuck", "crash", "bug", "fail", "broken"
+@app.get("/fetch_combined")
+def fetch_combined_route():
+    """Fetch 4 GitHub + 2 Reddit problems, reframe with description, round-robin merge, save to DB."""
+    
+    github_repos = [
+        "getfider/fider",
+        "atom/atom",
+        "instill-ai/community",
+        "isaacs/github",
+        "facebook/react",
+        "angular/angular",
+        "MetaMask/metamask-extension",
+        "ledgerhq/ledger-live-desktop",
+        "signalapp/Signal-Android",
+        "obsidianmd/obsidian-releases"
     ]
 
-    raw_posts = scrape_reddit(subreddits, keywords)[:10]
+    # ---------------------------
+    # Fetch GitHub issues
+    # ---------------------------
+    raw_github = fetch_github_issues(github_repos, per_repo=10)[:15]
 
-    print("🔹 Raw Reddit posts being scraped:")
-    for idx, post in enumerate(raw_posts, 1):
-        print(f"{idx}: {post}\n")
+    github_response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": """
+You are an assistant that reframes GitHub issues into **relatable hackathon problems**.
 
-    if not raw_posts:
-        return {"raw_posts": [], "problems": []}
+Rules:
+- Keep only issues that represent struggles everyday people or developers face.
+- Ignore typos, dependency bumps, or internal housekeeping.
+- Generalize the problem so it is relatable and hackathon-friendly.
 
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "system",
-                    "content": """
-You are an assistant that reframes Reddit posts into hackathon-style problems.
-For each post, generate:
-- title: a very short catchy title (max 5 words)
-- reframed: problem statement
-- domain: choose from [AI/ML, FinTech, Blockchain, HealthTech, WebDev, General Tech]
-- difficulty: Easy, Medium, or Hard
-Return the result as a JSON object like:
-{"problems": [ ... ]}
+For each valid issue, output:
+- title: catchy 3–5 word title
+- reframed: one-line hackathon-ready statement
+- small_description: 1–2 sentence brief explanation
+- description: detailed 2–3 sentence explanation + suggested solution idea
+- domain: [AI/ML, FinTech, Blockchain, HealthTech, WebDev, General Tech]
+- difficulty: Easy / Medium / Hard
+- text: optional, raw GitHub issue text
+
+Return JSON: {"problems": [ ... ]}
 """
-                },
-                {
-                    "role": "user",
-                    "content": f"Please convert the following posts to JSON format:\n{json.dumps(raw_posts)}"
-                }
-            ],
-            response_format={"type": "json_object"}
-        )
+            },
+            {"role": "user", "content": f"GitHub issues:\n{json.dumps(raw_github)}"}
+        ],
+        response_format={"type": "json_object"}
+    )
 
-        parsed = json.loads(response.choices[0].message.content)
-        problems = parsed.get("problems", [])
+    parsed_github = json.loads(github_response.choices[0].message.content)
+    github_problems = parsed_github.get("problems", [])[:4]
 
-        cursor = get_cursor()
-        for idx, p in enumerate(problems):
-            try:
-                cursor.execute(
-                    "INSERT INTO problems (title, text, reframed, domain, difficulty) VALUES (%s, %s, %s, %s, %s)",
-                    (
-                        p.get("title", ""),
-                        raw_posts[idx],
-                        p.get("reframed", ""),
-                        p.get("domain", ""),
-                        p.get("difficulty", "")
-                    )
+    # ---------------------------
+    # Fetch Reddit posts
+    # ---------------------------
+    subreddits = get_random_subreddits_per_domain(n_per_domain=2)
+    keywords = [
+        "how", "why", "error", "issue", "problem", "can't", "cannot",
+        "doesn't", "won't", "help", "stuck", "crash", "bug", "fail", "broken",
+        "struggle", "challenge", "confused", "question", "need", "worried"
+    ]
+    raw_reddit = scrape_reddit(subreddits, keywords)[:15]
+
+    reddit_response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": """
+You are an assistant that reframes Reddit posts into **relatable hackathon problems**.
+
+Rules:
+- Keep only posts describing real-life struggles (finance, jobs, healthcare, tech frustrations).
+- Ignore memes, low-effort rants, trivial issues.
+- Generalize the post into a broader problem.
+- Ensure it is hackathon-tackleable.
+
+For each valid post, output:
+- title: catchy 3–5 word title
+- reframed: one-line hackathon-ready statement
+- small_description: 1–2 sentence brief explanation
+- description: detailed 2–3 sentence explanation + suggested solution idea
+- domain: [AI/ML, FinTech, Blockchain, HealthTech, WebDev, General Tech]
+- difficulty: Easy / Medium / Hard
+- text: optional, raw Reddit post text
+
+Return JSON: {"problems": [ ... ]}
+"""
+            },
+            {"role": "user", "content": f"Reddit posts:\n{json.dumps(raw_reddit)}"}
+        ],
+        response_format={"type": "json_object"}
+    )
+
+    parsed_reddit = json.loads(reddit_response.choices[0].message.content)
+    reddit_problems = parsed_reddit.get("problems", [])[:2]
+
+    # ---------------------------
+    # Round-robin merge
+    # ---------------------------
+    final_problems = []
+    g_idx, r_idx = 0, 0
+    while g_idx < len(github_problems) or r_idx < len(reddit_problems):
+        if g_idx < len(github_problems):
+            final_problems.append(github_problems[g_idx])
+            g_idx += 1
+        if r_idx < len(reddit_problems):
+            final_problems.append(reddit_problems[r_idx])
+            r_idx += 1
+        if len(final_problems) >= 6:
+            break
+
+    # ---------------------------
+    # Save to DB
+    # ---------------------------
+    cursor = get_cursor()
+    for p in final_problems:
+        try:
+            cursor.execute(
+                """
+                INSERT INTO problems
+                (title, text, reframed, small_description, description, domain, difficulty)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    p.get("title", ""),
+                    p.get("text", ""),               # raw text optional
+                    p.get("reframed", ""),
+                    p.get("small_description", ""),
+                    p.get("description", ""),
+                    p.get("domain", ""),
+                    p.get("difficulty", "")
                 )
-            except Exception as e:
-                print(f"⚠️ DB insert failed: {e}")
-        db.commit()
+            )
+        except Exception as e:
+            print(f"⚠️ DB insert failed: {e}")
+    db.commit()
 
-        return {"raw_posts": raw_posts, "problems": problems}
-
-    except Exception as e:
-        print(f"❌ Error in /fetch: {e}")
-        return JSONResponse(status_code=500, content={"error": str(e)})
+    return {"problems": final_problems}
 
 
+# ---------------------------
+# List All Problems
+# ---------------------------
 @app.get("/problems")
 def list_problems():
     """List all problems stored in DB"""
