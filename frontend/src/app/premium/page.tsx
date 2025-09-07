@@ -42,7 +42,7 @@ export default function PremiumPage() {
     <div className="bg-[#0d1117] text-white min-h-screen flex h-screen overflow-hidden">
       {/* Sidebar */}
       <aside
-        className={`fixed w-64 bg-gray-800 p-4 h-full transform z-50 transition-transform duration-300 ${
+        className={`fixed w-64 bg-[#161b22] p-4 h-full transform z-50 transition-transform duration-300 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -54,8 +54,13 @@ export default function PremiumPage() {
             </a>
           </li>
           <li className="mb-4">
-            <a href="#" className="hover:text-green-400 font-semibold">
+            <a href="/premium" className="text-green-400 font-semibold">
               WhatTheActualHack
+            </a>
+          </li>
+          <li className="mb-4">
+            <a href="/settings" className="hover:text-green-400">
+              Settings
             </a>
           </li>
         </ul>
@@ -69,13 +74,17 @@ export default function PremiumPage() {
         }`}
       >
         {/* Header */}
-        <header className="bg-gray-800 p-4 flex items-center justify-between">
+        <header className="bg-[#161b22] p-4 flex items-center justify-between">
           <div className="flex items-center">
+            {/* Hamburger styled like Home page */}
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="mr-4 p-2 hover:bg-gray-700 rounded focus:outline-none"
+              aria-label="Toggle sidebar menu"
+              className="mr-4 p-3 rounded-lg shadow-md bg-[#21262d] border border-[#30363d]"
             >
-              ☰
+              <div className="w-6 h-[3px] bg-white mb-1" />
+              <div className="w-6 h-[3px] bg-white mb-1" />
+              <div className="w-6 h-[3px] bg-white" />
             </button>
             <Image src="/dark.png" alt="WhatTheActualHack" width={56} height={56} />
           </div>
@@ -176,7 +185,7 @@ function Section({
         {items.map(({ name, desc }) => (
           <div
             key={name}
-            className="bg-gray-800 p-4 rounded-lg shadow hover:scale-105 transition"
+            className="bg-[#161b22] p-4 rounded-lg shadow hover:scale-105 transition"
           >
             <div className="flex justify-between items-center">
               <div>
