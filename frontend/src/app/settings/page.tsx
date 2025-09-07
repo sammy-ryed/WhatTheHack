@@ -44,7 +44,7 @@ export default function SettingsPage() {
           </li>
           <li className="mb-4">
             <a href="/premium" className="hover:text-green-400">
-              WhatTheHack
+              WhatTheActualHack
             </a>
           </li>
           <li className="mb-4">
