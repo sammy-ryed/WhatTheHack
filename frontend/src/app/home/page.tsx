@@ -10,18 +10,16 @@ interface Problem {
   description: string; // detailed description + suggested solution
   domain: string;
   difficulty: string;
-  source: string; // new field
-  novelty: number; // 👈 add this
+  source: string;
+  novelty: number;
 }
-
-
 
 export default function HomePage() {
   const [problems, setProblems] = useState<Problem[]>([]);
   const [search, setSearch] = useState("");
   const [domainFilter, setDomainFilter] = useState("All");
   const [difficultyFilter, setDifficultyFilter] = useState("All");
-  const [theme, setTheme] = useState<"light" | "dark">("dark"); // default dark
+  const [theme, setTheme] = useState<"light" | "dark">("dark");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedProblem, setSelectedProblem] = useState<Problem | null>(null);
 
@@ -50,7 +48,8 @@ export default function HomePage() {
   // Filter + search logic
   const filtered = problems.filter((item) => {
     const matchesDomain = domainFilter === "All" || item.domain === domainFilter;
-    const matchesDifficulty = difficultyFilter === "All" || item.difficulty === difficultyFilter;
+    const matchesDifficulty =
+      difficultyFilter === "All" || item.difficulty === difficultyFilter;
     const matchesSearch =
       !search ||
       item.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -79,8 +78,18 @@ export default function HomePage() {
         }`}
       >
         <h2 className="text-2xl font-bold">Menu</h2>
-        <a href="/" className="hover:text-purple-500 text-lg">Landing</a>
-        <a href="/about" className="hover:text-purple-500 text-lg">About Us</a>
+        <a href="/" className="hover:text-purple-500 text-lg">
+          Landing
+        </a>
+        <a href="/about" className="hover:text-purple-500 text-lg">
+          About Us
+        </a>
+        <a href="/premium" className="hover:text-purple-500 text-lg">
+          WhatTheActualHack
+        </a>
+        <a href="/settings" className="hover:text-purple-500 text-lg">
+          Settings
+        </a>
       </aside>
 
       <div className="container max-w-5xl mx-auto p-6">
@@ -148,7 +157,9 @@ export default function HomePage() {
         {/* Problem Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filtered.length === 0 ? (
-            <p className="col-span-full text-center text-[var(--muted)]">No results found</p>
+            <p className="col-span-full text-center text-[var(--muted)]">
+              No results found
+            </p>
           ) : (
             filtered.map((item) => (
               <article
@@ -160,11 +171,15 @@ export default function HomePage() {
                 <span className="inline-block text-sm bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-full text-black mb-3">
                   {item.domain} | {item.difficulty}
                 </span>
-              <p className="text-xs text-[var(--muted)] mb-2">
-  Source: <span className="font-medium text-yellow-300">{item.source}</span>
-
-</p>
-                <h3 className="text-2xl font-bold mb-2 text-[var(--text)]">{item.title}</h3>
+                <p className="text-xs text-[var(--muted)] mb-2">
+                  Source:{" "}
+                  <span className="font-medium text-yellow-300">
+                    {item.source}
+                  </span>
+                </p>
+                <h3 className="text-2xl font-bold mb-2 text-[var(--text)]">
+                  {item.title}
+                </h3>
 
                 {/* Small description on hover */}
                 <p
@@ -181,27 +196,36 @@ export default function HomePage() {
       </div>
 
       {/* Modal */}
-{selectedProblem && (
-  <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-    <div className="bg-[var(--card)] rounded-2xl max-w-lg w-full p-6 relative shadow-xl overflow-y-auto max-h-[90vh]">
-      <button
-        className="absolute top-3 right-3 text-xl font-bold"
-        onClick={() => setSelectedProblem(null)}
-      >
-        ✕
-      </button>
-      <h2 className="text-3xl font-bold mb-4">{selectedProblem.title}</h2>
-      <p className="text-lg font-semibold mb-2">Problem Statement:</p>
-      <p className="mb-4">{selectedProblem.reframed}</p>
-      <p className="text-lg font-semibold mb-2">Detailed Description & Suggested Solution:</p>
-      <p className="mb-4">{selectedProblem.description}</p>
-      <p className="mb-1"><strong>Domain:</strong> {selectedProblem.domain}</p>
-      <p className="mb-1"><strong>Difficulty:</strong> {selectedProblem.difficulty}</p>
-      <p><strong>Novelty:</strong> {selectedProblem.novelty} / 10</p>
-    </div>
-  </div>
-)}
-
+      {selectedProblem && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-[var(--card)] rounded-2xl max-w-lg w-full p-6 relative shadow-xl overflow-y-auto max-h-[90vh]">
+            <button
+              className="absolute top-3 right-3 text-xl font-bold"
+              onClick={() => setSelectedProblem(null)}
+            >
+              ✕
+            </button>
+            <h2 className="text-3xl font-bold mb-4">
+              {selectedProblem.title}
+            </h2>
+            <p className="text-lg font-semibold mb-2">Problem Statement:</p>
+            <p className="mb-4">{selectedProblem.reframed}</p>
+            <p className="text-lg font-semibold mb-2">
+              Detailed Description & Suggested Solution:
+            </p>
+            <p className="mb-4">{selectedProblem.description}</p>
+            <p className="mb-1">
+              <strong>Domain:</strong> {selectedProblem.domain}
+            </p>
+            <p className="mb-1">
+              <strong>Difficulty:</strong> {selectedProblem.difficulty}
+            </p>
+            <p>
+              <strong>Novelty:</strong> {selectedProblem.novelty} / 10
+            </p>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
