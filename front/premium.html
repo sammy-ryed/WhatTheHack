@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatTheActualHack</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Smooth sidebar transition */
+        #sidebar {
+            transition: transform 0.3s ease-in-out;
+        }
+
+        /* Smooth toggle animation */
+        .toggle-circle {
+            transition: transform 0.3s ease-in-out;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-900 text-white min-h-screen">
+
+    <div class="flex h-screen overflow-hidden">
+
+        <aside id="sidebar" class="fixed w-64 bg-gray-800 p-4 h-full transform z-50">
+            <h2 class="text-xl font-bold mb-6">Menu</h2>
+            <ul>
+                <li class="mb-4"><a href="page.tsx" class="hover:text-green-400">Home</a></li>
+                <li class="mb-4"><a href="#" class="hover:text-green-400 font-semibold">WhatTheActualHack</a></li>
+            </ul>
+        </aside>
+
+        <div id="mainContent" class="flex-1 flex flex-col transition-all duration-300 ml-64">
+
+            <header class="bg-gray-800 p-4 flex items-center justify-between">
+                <div class="flex items-center">
+                    <button id="sidebarToggle" class="mr-4 p-2 hover:bg-gray-700 rounded focus:outline-none">
+                        ☰
+                    </button>
+                    <img src="dark.png" alt="WhatTheActualHack" class="h-14">
+                </div>
+
+                <div class="relative">
+                    <button id="profileDropdownToggle" class="focus:outline-none">
+                        <div
+                            class="w-8 h-8 bg-gray-500 rounded-full hover:bg-gray-400 flex items-center justify-center">
+                            <span class="text-lg font-semibold">J</span>
+                        </div>
+                    </button>
+                    <div id="profileDropdownContent"
+                        class="absolute right-0 mt-2 w-48 bg-gray-700 rounded-md shadow-lg py-1 z-20 hidden">
+                        <div class="block px-4 py-2 text-sm text-gray-300">
+                            Username: JohnDoe
+                        </div>
+                        <a href="premium.html" class="block px-4 py-2 text-sm text-green-300 hover:bg-green-600">Premium
+                            User</a>
+                        <a href="settings.html"
+                            class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-600">Settings</a>
+                        <a href="#" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-600">Logout</a>
+                    </div>
+                </div>
+            </header>
+
+            <main class="p-6 overflow-y-auto">
+
+                <section class="mb-10">
+                    <h2 class="text-xl font-bold mb-4">Manage APIs</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="bg-gray-800 p-4 rounded-lg shadow hover:scale-105 transition">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <h3 class="text-lg font-semibold">GitHub Scraper</h3>
+                                    <p class="text-sm text-gray-400">Scrape GitHub repositories</p>
+                                </div>
+                                <button class="toggle-btn relative w-12 h-6 bg-gray-600 rounded-full">
+                                    <span
+                                        class="toggle-circle absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transform"></span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="bg-gray-800 p-4 rounded-lg shadow hover:scale-105 transition">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <h3 class="text-lg font-semibold">Reddit Scraper</h3>
+                                    <p class="text-sm text-gray-400">Collect data from Reddit</p>
+                                </div>
+                                <button class="toggle-btn relative w-12 h-6 bg-gray-600 rounded-full">
+                                    <span
+                                        class="toggle-circle absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transform"></span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="bg-gray-800 p-4 rounded-lg shadow hover:scale-105 transition">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <h3 class="text-lg font-semibold">Internal Knowledge Base</h3>
+                                    <p class="text-sm text-gray-400">Query internal documents</p>
+                                </div>
+                                <button class="toggle-btn relative w-12 h-6 bg-gray-600 rounded-full">
+                                    <span
+                                        class="toggle-circle absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transform"></span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="mb-10">
+                    <h2 class="text-xl font-bold mb-4">Manage LLMs</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div class="bg-gray-800 p-4 rounded-lg shadow hover:scale-105 transition">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <h3 class="text-lg font-semibold">GPT-4</h3>
+                                    <p class="text-sm text-gray-400">OpenAI's most advanced model</p>
+                                </div>
+                                <button class="toggle-btn relative w-12 h-6 bg-gray-600 rounded-full">
+                                    <span
+                                        class="toggle-circle absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transform"></span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="bg-gray-800 p-4 rounded-lg shadow hover:scale-105 transition">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <h3 class="text-lg font-semibold">Claude</h3>
+                                    <p class="text-sm text-gray-400">Anthropic's advanced LLM</p>
+                                </div>
+                                <button class="toggle-btn relative w-12 h-6 bg-gray-600 rounded-full">
+                                    <span
+                                        class="toggle-circle absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transform"></span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="bg-gray-800 p-4 rounded-lg shadow hover:scale-105 transition">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <h3 class="text-lg font-semibold">LLaMA 3</h3>
+                                    <p class="text-sm text-gray-400">Meta's open-source model</p>
+                                </div>
+                                <button class="toggle-btn relative w-12 h-6 bg-gray-600 rounded-full">
+                                    <span
+                                        class="toggle-circle absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transform"></span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="bg-gray-800 p-4 rounded-lg shadow hover:scale-105 transition">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <h3 class="text-lg font-semibold">Gemini Pro</h3>
+                                    <p class="text-sm text-gray-400">Google DeepMind's model</p>
+                                </div>
+                                <button class="toggle-btn relative w-12 h-6 bg-gray-600 rounded-full">
+                                    <span
+                                        class="toggle-circle absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transform"></span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="flex justify-end">
+                    <button id="saveSettings"
+                        class="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg font-semibold transition">
+                        Save Settings
+                    </button>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+        const toggleBtn = document.getElementById('sidebarToggle');
+
+        // Toggle sidebar visibility
+        toggleBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('-translate-x-full');
+            mainContent.classList.toggle('ml-64');
+        });
+
+        // Toggle switches
+        const toggleButtons = document.querySelectorAll('.toggle-btn');
+        toggleButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const circle = button.querySelector('.toggle-circle');
+
+                button.classList.toggle('bg-green-500');
+                button.classList.toggle('bg-gray-600');
+                circle.classList.toggle('translate-x-6');
+            });
+        });
+
+        // Save settings and log results
+        document.getElementById('saveSettings').addEventListener('click', () => {
+            const settings = [];
+            toggleButtons.forEach(button => {
+                const name = button.parentElement.querySelector('h3').innerText;
+                const active = button.classList.contains('bg-green-500');
+                settings.push({ name, active });
+            });
+            console.log('Saved Settings:', settings);
+            alert('Settings saved! Check the console for details.');
+        });
+
+        // Profile Dropdown Toggle
+        const profileDropdownToggle = document.getElementById('profileDropdownToggle');
+        const profileDropdownContent = document.getElementById('profileDropdownContent');
+
+        profileDropdownToggle.addEventListener('click', () => {
+            profileDropdownContent.classList.toggle('hidden');
+        });
+
+        // Close dropdown if clicked outside
+        document.addEventListener('click', (event) => {
+            if (!profileDropdownToggle.contains(event.target) && !profileDropdownContent.contains(event.target)) {
+                profileDropdownContent.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+
+</html>

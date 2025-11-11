@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - WhatTheActualHack</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Smooth sidebar transition */
+        #sidebar {
+            transition: transform 0.3s ease-in-out;
+        }
+
+        /* Smooth toggle animation */
+        .toggle-circle {
+            transition: transform 0.3s ease-in-out;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-900 text-white min-h-screen">
+
+    <div class="flex h-screen overflow-hidden">
+
+        <aside id="sidebar" class="fixed w-64 bg-gray-800 p-4 h-full transform z-50">
+            <h2 class="text-xl font-bold mb-6">Menu</h2>
+            <ul>
+                <li class="mb-4"><a href="#" class="hover:text-green-400">Home</a></li>
+                <li class="mb-4"><a href="premium.html" class="hover:text-green-400">WhatTheHack</a>
+                </li>
+                <li class="mb-4"><a href="#" class="text-green-400 font-semibold">Settings</a></li>
+            </ul>
+        </aside>
+
+        <div id="mainContent" class="flex-1 flex flex-col transition-all duration-300 ml-64">
+
+            <header class="bg-gray-800 p-4 flex items-center justify-between">
+                <div class="flex items-center">
+                    <button id="sidebarToggle" class="mr-4 p-2 hover:bg-gray-700 rounded focus:outline-none">
+                        ☰
+                    </button>
+                    <img src="dark.png" alt="WhatTheHack" class="h-14">
+                </div>
+
+                <div class="relative">
+                    <button id="profileDropdownToggle" class="focus:outline-none">
+                        <div
+                            class="w-8 h-8 bg-gray-500 rounded-full hover:bg-gray-400 flex items-center justify-center">
+                            <span class="text-lg font-semibold">J</span>
+                        </div>
+                    </button>
+                    <div id="profileDropdownContent"
+                        class="absolute right-0 mt-2 w-48 bg-gray-700 rounded-md shadow-lg py-1 z-20 hidden">
+                        <div class="block px-4 py-2 text-sm text-gray-300">
+                            Username: JohnDoe
+                        </div>
+                        <div class="block px-4 py-2 text-sm text-green-400">
+                            Premium User
+                        </div>
+                        <a href="#" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-600">Settings</a>
+                        <a href="#" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-600">Logout</a>
+                    </div>
+                </div>
+            </header>
+
+            <main class="p-8 overflow-y-auto">
+
+                <section class="mb-12">
+                    <h2 class="text-2xl font-bold border-b border-gray-700 pb-2 mb-6">Profile Settings</h2>
+                    <div class="space-y-6">
+                        <div>
+                            <label for="username" class="block text-sm font-medium text-gray-300 mb-1">Username</label>
+                            <input type="text" id="username" placeholder="JohnDoe"
+                                class="w-full md:w-1/2 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500">
+                        </div>
+                        <div>
+                            <label for="email" class="block text-sm font-medium text-gray-300 mb-1">Email
+                                Address</label>
+                            <input type="email" id="email" placeholder="JohnDoe@email.com"
+                                class="w-full md:w-1/2 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500">
+                        </div>
+                        <div>
+                            <label for="bio" class="block text-sm font-medium text-gray-300 mb-1">Bio</label>
+                            <textarea id="bio" rows="4"
+                                class="w-full md:w-1/2 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                                placeholder="Tell us about yourself..."></textarea>
+                        </div>
+                    </div>
+                </section>
+
+
+
+                <section>
+                    <div class="border-2 border-red-500/50 rounded-lg p-4 md:w-1/2">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="font-semibold text-red-400">Delete Account</h3>
+                                <p class="text-sm text-gray-400">Once you delete your account, there is no going back.
+                                </p>
+                            </div>
+                            <button
+                                class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold transition">
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="flex justify-start mt-10 border-t border-gray-700 pt-6">
+                    <button id="saveChanges"
+                        class="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg font-semibold transition">
+                        Save Changes
+                    </button>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <script>
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+        const toggleBtn = document.getElementById('sidebarToggle');
+
+        // Sidebar visibility
+        toggleBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('-translate-x-full');
+            mainContent.classList.toggle('ml-64');
+        });
+
+        // Toggle switches
+        const toggleButtons = document.querySelectorAll('.toggle-btn');
+        toggleButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const circle = button.querySelector('.toggle-circle');
+                button.classList.toggle('bg-green-500');
+                button.classList.toggle('bg-gray-600');
+                circle.classList.toggle('translate-x-6');
+            });
+        });
+
+        // Profile Dropdown
+        const profileDropdownToggle = document.getElementById('profileDropdownToggle');
+        const profileDropdownContent = document.getElementById('profileDropdownContent');
+        profileDropdownToggle.addEventListener('click', () => {
+            profileDropdownContent.classList.toggle('hidden');
+        });
+        document.addEventListener('click', (event) => {
+            if (!profileDropdownToggle.contains(event.target) && !profileDropdownContent.contains(event.target)) {
+                profileDropdownContent.classList.add('hidden');
+            }
+        });
+
+        // Save Changes
+        document.getElementById('saveChanges').addEventListener('click', () => {
+            alert('Your settings have been saved!');
+        });
+    </script>
+</body>
+
+</html>
